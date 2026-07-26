@@ -1,0 +1,2 @@
+import type { Slide } from "@/types/editor";import type { EditorApi } from "@/hooks/useEditorState";import { LayerItem } from "./LayerItem";
+export function LayerList({slide,selected,api}:{slide:Slide;selected:string|null;api:EditorApi}){return <ul className="layer-list">{[...slide.layers].reverse().map(l=><LayerItem key={l.id} layer={l} selected={l.id===selected} onSelect={()=>api.selectLayer(l.id)} onMove={d=>api.moveLayer(l.id,d)}/>)}</ul>}

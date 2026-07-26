@@ -1,0 +1,1 @@
+import type { EditorState } from "@/types/editor";export function SaveStatus({status}:{status:EditorState["saveStatus"]}){return <p className={`save-status ${status}`} role="status">{status==="dirty"?"Unsaved changes":status==="saving"?"Saving…":status==="error"?"Save failed":"All changes saved"}</p>}

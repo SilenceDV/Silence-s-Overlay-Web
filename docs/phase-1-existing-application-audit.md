@@ -110,7 +110,7 @@ detection, retry strategy, ownership check, or untrusted-input schema validation
 ## Current overlay URL system
 
 `overlayURL()` normalizes and serializes all settings/slides, UTF-8 base64-encodes the
-JSON, and places it in `?mode=overlay#data=...`. Initialization decodes the URL fragment
+JSON, and places it in `a query-and-fragment embedded payload`. Initialization decodes the URL fragment
 entirely in the browser and starts rotation. This makes every link self-contained,
 potentially extremely large, impossible to revoke, and independent of future account
 or subscription state. It can also expose all published content to anyone holding the

@@ -1,0 +1,1 @@
+import type { Entitlements } from "@/types/billing";export function SubscriptionStatus({value}:{value:Entitlements}){return <section className="card"><h2>Subscription</h2><p>{value.plan.toUpperCase()} · {value.subscriptionState}</p>{value.currentPeriodEnd&&<p>Access through {new Date(value.currentPeriodEnd).toLocaleDateString()}</p>}</section>}

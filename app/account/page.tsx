@@ -1,0 +1,1 @@
+import { LoginForm } from "@/components/account/LoginForm";import { SignupForm } from "@/components/account/SignupForm";export default function Account(){return <main className="page"><h1>Account</h1><div className="card-grid"><LoginForm/><SignupForm/></div></main>}

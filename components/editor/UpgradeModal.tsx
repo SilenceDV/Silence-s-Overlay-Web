@@ -1,0 +1,1 @@
+export function UpgradeModal({open,onClose}:{open:boolean;onClose:()=>void}){if(!open)return null;return <div className="modal-backdrop"><section className="modal"><h2>Upgrade to Pro</h2><p>Unlock multiple slides and premium continuous animations.</p><a className="button" href="/billing">View billing</a><button onClick={onClose}>Not now</button></section></div>}

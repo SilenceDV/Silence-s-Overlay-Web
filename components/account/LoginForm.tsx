@@ -1,0 +1,1 @@
+export function LoginForm(){return <form className="card" action="/api/auth/login" method="post"><h2>Log in</h2><label>Email<input required type="email" name="email"/></label><label>Password<input required type="password" name="password"/></label><button>Log in</button></form>}

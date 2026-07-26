@@ -1,0 +1,1 @@
+export function SignupForm(){return <form className="card" action="/api/auth/signup" method="post"><h2>Create account</h2><label>Email<input required type="email" name="email"/></label><label>Password<input required minLength={8} type="password" name="password"/></label><button>Sign up</button></form>}
