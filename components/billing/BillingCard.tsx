@@ -1,0 +1,1 @@
+export function BillingCard(){return <section className="card"><h2>Pro</h2><p>Multiple slides, premium animations, and hosted overlays.</p><form action="/api/billing/checkout" method="post"><button>Upgrade with Stripe</button></form></section>}

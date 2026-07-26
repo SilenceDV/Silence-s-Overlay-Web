@@ -1,0 +1,6 @@
+import "server-only";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { overlayIsActive } from "./entitlementRevalidation";
+import type { PublishedOverlay } from "@/types/editor";
+import type { SubscriptionRecord, SubscriptionState } from "@/types/billing";
+export async function fetchOverlay(publicId:string):Promise<PublishedOverlay|null>{if(!process.env.NEXT_PUBLIC_SUPABASE_URL||!process.env.SUPABASE_SERVICE_ROLE_KEY)return null;const db=createSupabaseAdminClient();const {data}=await db.from("overlays").select("*").eq("public_id",publicId).maybeSingle();if(!data)return null;const {data:sub}=await db.from("subscriptions").select("*").eq("user_id",data.owner_id).maybeSingle();const subscription:SubscriptionRecord|null=sub?{userId:data.owner_id,stripeCustomerId:sub.stripe_customer_id,stripeSubscriptionId:sub.stripe_subscription_id,status:sub.status as SubscriptionState,currentPeriodEnd:sub.current_period_end,cancelAtPeriodEnd:Boolean(sub.cancel_at_period_end)}:null;if(!overlayIsActive(Boolean(data.enabled),subscription))return null;return{publicId:data.public_id,ownerId:data.owner_id,projectId:data.project_id,enabled:data.enabled,snapshot:data.snapshot,publishedAt:data.published_at};}

@@ -1,0 +1,1 @@
+import { NextResponse } from "next/server";import { calculateEntitlements } from "@/lib/billing/entitlements";export async function GET(){return NextResponse.json(calculateEntitlements(null),{headers:{"Cache-Control":"no-store"}});}

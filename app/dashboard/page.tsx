@@ -1,0 +1,1 @@
+import Link from "next/link";export default function Dashboard(){return <main className="page"><h1>Your overlays</h1><p>Create, edit, and publish overlays from one dashboard.</p><Link className="button" href="/editor">New overlay</Link></main>}

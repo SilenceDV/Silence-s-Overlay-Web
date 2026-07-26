@@ -1,0 +1,1 @@
+interface Props{label:string;value:string;onChange:(value:string)=>void} export function ColorPicker({label,value,onChange}:Props){return <label className="control-label">{label}<span className="color-control"><input type="color" value={value} onChange={e=>onChange(e.target.value)}/><input value={value} onChange={e=>onChange(e.target.value)}/></span></label>}

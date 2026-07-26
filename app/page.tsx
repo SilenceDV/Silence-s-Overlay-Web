@@ -1,0 +1,1 @@
+import Link from "next/link";export default function Home(){return <main className="landing"><h1>Silence&apos;s Overlay Maker</h1><p>Design animated overlays and publish a stable browser-source link.</p><Link className="button" href="/editor">Open editor</Link></main>}
