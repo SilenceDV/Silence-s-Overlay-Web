@@ -484,6 +484,450 @@ body.overlayOnly #stageViewport{
   border-radius:12px;
 }
 
+
+
+/* ===== LAYER-LEVEL ANIMATIONS, IMAGE OUTLINES, AND PARTICLES ===== */
+.layerClip{position:relative}
+.motionWrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;transform-origin:center center;pointer-events:none}
+.layerMotionFloat{animation:layerMotionFloat var(--layerAnimSpeed,3s) ease-in-out infinite}
+.layerMotionBob{animation:layerMotionBob var(--layerAnimSpeed,2s) ease-in-out infinite}
+.layerMotionPulse{animation:layerMotionPulse var(--layerAnimSpeed,2s) ease-in-out infinite}
+.layerMotionWiggle{animation:layerMotionWiggle var(--layerAnimSpeed,1.8s) ease-in-out infinite}
+.layerMotionRotate{animation:layerMotionRotate var(--layerAnimSpeed,5s) linear infinite}
+.layerMotionHover{animation:layerMotionHover var(--layerAnimSpeed,3s) ease-in-out infinite}
+.layerMotionBounce{animation:layerMotionBounce var(--layerAnimSpeed,1.4s) ease-in-out infinite}
+.layerMotionZoomIn{animation:layerMotionZoomIn var(--layerAnimSpeed,6s) ease-in-out infinite alternate}
+.layerMotionZoomOut{animation:layerMotionZoomOut var(--layerAnimSpeed,6s) ease-in-out infinite alternate}
+.layerMotionDriftLR{animation:layerMotionDriftLR var(--layerAnimSpeed,4s) ease-in-out infinite}
+.layerMotionDriftUD{animation:layerMotionDriftUD var(--layerAnimSpeed,4s) ease-in-out infinite}
+@keyframes layerMotionFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-26px)}}
+@keyframes layerMotionBob{0%,100%{transform:translateY(0)}50%{transform:translateY(16px)}}
+@keyframes layerMotionPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+@keyframes layerMotionWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+@keyframes layerMotionRotate{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes layerMotionHover{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14px) scale(1.03)}}
+@keyframes layerMotionBounce{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(-34px) scale(1.04)}65%{transform:translateY(8px) scale(.98)}}
+@keyframes layerMotionZoomIn{from{transform:scale(1)}to{transform:scale(1.18)}}
+@keyframes layerMotionZoomOut{from{transform:scale(1.18)}to{transform:scale(1)}}
+@keyframes layerMotionDriftLR{0%,100%{transform:translateX(-18px)}50%{transform:translateX(18px)}}
+@keyframes layerMotionDriftUD{0%,100%{transform:translateY(-18px)}50%{transform:translateY(18px)}}
+
+.letterAnim span{display:inline-block;white-space:pre}
+.textWave span{animation:textWave var(--textAnimSpeed,1.2s) ease-in-out infinite}
+.textBounce span{animation:textBounce var(--textAnimSpeed,1s) ease-in-out infinite}
+.textTypewriter span{opacity:0;animation:textTypewriter .22s linear forwards}
+.textFlicker{animation:textFlicker var(--textAnimSpeed,1.3s) steps(2,end) infinite}
+.textNeonPulse{animation:textNeonPulse var(--textAnimSpeed,1.8s) ease-in-out infinite}
+.textGlitchLoop{animation:textGlitchLoop var(--textAnimSpeed,.75s) steps(2,end) infinite}
+.textBreathing{animation:textBreathing var(--textAnimSpeed,2.4s) ease-in-out infinite}
+@keyframes textWave{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+@keyframes textBounce{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-22px) scale(1.05)}70%{transform:translateY(4px) scale(.98)}}
+@keyframes textTypewriter{to{opacity:1}}
+@keyframes textFlicker{0%,100%{opacity:1}45%{opacity:.55}50%{opacity:1}60%{opacity:.75}}
+@keyframes textNeonPulse{0%,100%{filter:drop-shadow(0 0 4px currentColor) drop-shadow(0 0 12px currentColor)}50%{filter:drop-shadow(0 0 12px currentColor) drop-shadow(0 0 30px currentColor);transform:scale(1.035)}}
+@keyframes textGlitchLoop{0%,100%{transform:translate(0,0);filter:hue-rotate(0deg)}20%{transform:translate(-3px,2px);filter:hue-rotate(65deg)}40%{transform:translate(3px,-2px);filter:hue-rotate(-80deg)}60%{transform:translate(-2px,-1px);filter:hue-rotate(120deg)}}
+@keyframes textBreathing{0%,100%{transform:scale(1)}50%{transform:scale(1.055)}}
+
+.particleLayer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:8}
+.particleLayer span{position:absolute;display:block;left:var(--px);top:var(--py);font-size:var(--ps);animation-delay:var(--pd);animation-duration:var(--pdur);animation-iteration-count:infinite;animation-timing-function:ease-in-out;filter:drop-shadow(0 0 7px rgba(255,255,255,.8))}
+.particleSparkles span::before{content:"✨"}.particleStars span::before{content:"✦"}.particleEmbers span::before{content:"●";color:#ff7a00}.particleConfetti span::before{content:"■";color:var(--pc)}.particleLightning span::before{content:"⚡"}.particleSnow span::before{content:"❄"}
+.particleSparkles span,.particleStars span{animation-name:particleTwinkle}.particleEmbers span{animation-name:particleRise}.particleConfetti span{animation-name:particleFall}.particleLightning span{animation-name:particleZap}.particleSnow span{animation-name:particleSnow}
+@keyframes particleTwinkle{0%,100%{opacity:0;transform:scale(.4) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(18deg)}}
+@keyframes particleRise{0%{opacity:0;transform:translateY(22px) scale(.55)}30%{opacity:1}100%{opacity:0;transform:translateY(-45px) scale(.25)}}
+@keyframes particleFall{0%{opacity:0;transform:translateY(-25px) rotate(0)}20%{opacity:1}100%{opacity:0;transform:translateY(60px) rotate(220deg)}}
+@keyframes particleZap{0%,100%{opacity:0;transform:scale(.7) rotate(-8deg)}10%,25%{opacity:1;transform:scale(1.2) rotate(8deg)}35%{opacity:0}}
+@keyframes particleSnow{0%{opacity:0;transform:translateY(-20px)}20%{opacity:1}100%{opacity:0;transform:translateY(55px)}}
+
+
+/* ===== PREMIUM BURST + SHIMMER UPGRADE ===== */
+.layerClip{position:relative}
+.layerMotion{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+.layerImg{position:relative;z-index:2}
+.imageBurstFX{position:absolute;inset:-24%;pointer-events:none;z-index:3;opacity:0}
+.imageBurstFX::before,.imageBurstFX::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle, rgba(255,255,255,.95) 0 3%, transparent 4%),conic-gradient(from 0deg,transparent 0deg,rgba(255,255,255,.95) 10deg,transparent 21deg,transparent 38deg,rgba(0,170,255,.9) 50deg,transparent 64deg,transparent 82deg,rgba(255,122,0,.9) 93deg,transparent 110deg,transparent 138deg,rgba(255,255,255,.85) 148deg,transparent 162deg,transparent 190deg,rgba(87,255,244,.85) 202deg,transparent 218deg,transparent 245deg,rgba(255,255,255,.9) 257deg,transparent 272deg,transparent 300deg,rgba(255,204,66,.85) 314deg,transparent 330deg);-webkit-mask:radial-gradient(circle, transparent 0 28%, #000 30% 54%, transparent 57%);mask:radial-gradient(circle, transparent 0 28%, #000 30% 54%, transparent 57%)}
+.imageBurstFX::after{inset:10%;transform:rotate(18deg);filter:blur(1px)}
+.burstOnce .imageBurstFX{animation:imageBurstOnce var(--burstSpeed,.82s) ease-out both}
+.burstLoop .imageBurstFX{animation:imageBurstLoop var(--burstSpeed,1.4s) ease-out infinite}
+@keyframes imageBurstOnce{0%{opacity:0;transform:scale(.25) rotate(-18deg);filter:blur(6px)}18%{opacity:1;transform:scale(.72) rotate(8deg);filter:blur(0)}58%{opacity:.85;transform:scale(1.13) rotate(20deg)}100%{opacity:0;transform:scale(1.55) rotate(36deg);filter:blur(4px)}}
+@keyframes imageBurstLoop{0%,64%,100%{opacity:0;transform:scale(.35) rotate(-15deg);filter:blur(5px)}12%{opacity:1;transform:scale(.72) rotate(5deg);filter:blur(0)}38%{opacity:.72;transform:scale(1.2) rotate(28deg)}63%{opacity:0;transform:scale(1.55) rotate(42deg);filter:blur(4px)}}
+.imgPopBurst .layerMotion{animation:imgPopBurst var(--layerAnimSpeed,.75s) cubic-bezier(.17,.89,.32,1.35) both}
+.imgFloatLoop .layerMotion{animation:imgFloatLoop var(--layerAnimSpeed,3s) ease-in-out infinite}
+.imgPulseLoop .layerMotion{animation:imgPulseLoop var(--layerAnimSpeed,1.8s) ease-in-out infinite}
+.imgWiggleLoop .layerMotion{animation:imgWiggleLoop var(--layerAnimSpeed,1.7s) ease-in-out infinite}
+.imgSlowZoomIn .layerMotion{animation:imgSlowZoomIn var(--layerAnimSpeed,6s) linear infinite alternate}
+.imgHoverBounce .layerMotion{animation:imgHoverBounce var(--layerAnimSpeed,2.2s) ease-in-out infinite}
+@keyframes imgPopBurst{0%{opacity:0;transform:scale(.35) rotate(-3deg)}60%{opacity:1;transform:scale(1.12) rotate(2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes imgFloatLoop{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
+@keyframes imgPulseLoop{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes imgWiggleLoop{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+@keyframes imgSlowZoomIn{0%{transform:scale(1)}100%{transform:scale(1.16)}}
+@keyframes imgHoverBounce{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-18px) scale(1.03)}70%{transform:translateY(7px) scale(.995)}}
+.textShimmer{position:relative;overflow:hidden}
+.textShimmer::after{content:"";position:absolute;inset:-30%;transform:translateX(-150%) rotate(18deg);background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0) 35%,rgba(255,255,255,.88) 50%,rgba(255,255,255,0) 65%,transparent 100%);mix-blend-mode:screen;pointer-events:none;animation:textShimmerSweep var(--shimmerSpeed,2.2s) ease-in-out infinite}
+@keyframes textShimmerSweep{0%,20%{transform:translateX(-155%) rotate(18deg);opacity:0}32%{opacity:1}62%{transform:translateX(155%) rotate(18deg);opacity:1}78%,100%{transform:translateX(155%) rotate(18deg);opacity:0}}
+.waveChar,.bounceChar,.glitchChar,.flickerChar{display:inline-block;white-space:pre}
+.waveLetters .waveChar{animation:letterWave var(--textAnimSpeed,1.15s) ease-in-out infinite;animation-delay:calc(var(--i) * var(--letterDelay,.055s))}
+.bounceLetters .bounceChar{animation:letterBounce var(--textAnimSpeed,.9s) cubic-bezier(.17,.89,.32,1.35) infinite;animation-delay:calc(var(--i) * var(--letterDelay,.045s))}
+.glitchLetters .glitchChar{animation:letterGlitch var(--textAnimSpeed,.55s) steps(2,end) infinite;animation-delay:calc(var(--i) * var(--letterDelay,.025s))}
+.flickerLetters .flickerChar{animation:letterFlicker var(--textAnimSpeed,1.2s) linear infinite;animation-delay:calc(var(--i) * var(--letterDelay,.035s))}
+.breatheText{animation:breatheText var(--textAnimSpeed,2.2s) ease-in-out infinite}
+.typewriterLetters .waveChar{opacity:0;animation:typewriterLetter .22s linear forwards;animation-delay:calc(var(--i) * var(--letterDelay,.055s))}
+@keyframes letterWave{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes letterBounce{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-18px) scale(1.08)}70%{transform:translateY(4px) scale(.98)}}
+@keyframes letterGlitch{0%,100%{transform:translate(0,0);filter:hue-rotate(0)}25%{transform:translate(-2px,1px);filter:hue-rotate(70deg)}50%{transform:translate(2px,-1px);filter:hue-rotate(-90deg)}75%{transform:translate(-1px,-2px);filter:hue-rotate(130deg)}}
+@keyframes letterFlicker{0%,100%{opacity:1;filter:brightness(1)}8%{opacity:.35;filter:brightness(1.8)}10%{opacity:1}44%{opacity:.55}47%{opacity:1}70%{filter:brightness(1.4)}}
+@keyframes breatheText{0%,100%{transform:scale(1)}50%{transform:scale(1.055)}}
+@keyframes typewriterLetter{to{opacity:1}}
+.particleLayer{position:absolute;inset:-10%;overflow:hidden;pointer-events:none;z-index:4}
+.particleLayer span{position:absolute;left:var(--x);top:var(--y);font-size:var(--s);opacity:0;animation:particleFloat var(--particleSpeed,2.4s) ease-in-out infinite;animation-delay:var(--d);filter:drop-shadow(0 0 8px rgba(255,255,255,.75))}
+.particlesSparkle span::before{content:"✦"}.particlesStars span::before{content:"★"}.particlesEmbers span::before{content:"●";color:#ff7a00;text-shadow:0 0 10px #ff3300}.particlesConfetti span::before{content:"◆"}.particlesLightning span::before{content:"⚡";color:#9ee7ff}
+@keyframes particleFloat{0%,100%{opacity:0;transform:translateY(16px) scale(.55) rotate(0)}20%{opacity:1}70%{opacity:.85}100%{transform:translateY(-32px) scale(1.05) rotate(180deg)}}
+
+
+/* ===== TEXT VISIBILITY FIX ===== */
+.layerText span{
+  color:inherit;
+  -webkit-text-fill-color:inherit;
+}
+.layerText.solid span{
+  color:var(--textColor);
+  -webkit-text-fill-color:var(--textColor);
+}
+.layerText.rainbow span,
+.layerText.aurora span,
+.layerText.customGradient span,
+.layerText.fireText span,
+.layerText.iceText span,
+.layerText.goldText span{
+  background:inherit;
+  background-image:inherit;
+  background-size:inherit;
+  background-position:inherit;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  -webkit-text-fill-color:transparent;
+}
+.layerText{
+  min-width:max-content;
+  min-height:1em;
+}
+
+
+/* ===== HARD TEXT VISIBILITY FIX ===== */
+.layerText{
+  width:auto!important;
+  height:auto!important;
+  display:block!important;
+  overflow:visible!important;
+  visibility:visible!important;
+  opacity:1;
+}
+.layerText.solid,
+.layerText.solid span{
+  color:var(--textColor,#57fff4)!important;
+  -webkit-text-fill-color:var(--textColor,#57fff4)!important;
+  background-image:none!important;
+}
+.layerText:not(.solid){
+  -webkit-background-clip:text;
+  background-clip:text;
+}
+.layerText:not(.solid) span{
+  background:inherit;
+  background-image:inherit;
+  background-size:inherit;
+  background-position:inherit;
+  -webkit-background-clip:text;
+  background-clip:text;
+}
+.textShimmer::after{
+  z-index:20;
+}
+
+
+/* ===== FINAL SAFE TEXT RENDER FIX ===== */
+.layerText{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:1px!important;
+  min-height:1em!important;
+  overflow:visible!important;
+  opacity:1!important;
+  visibility:visible!important;
+  white-space:pre-wrap!important;
+  color:var(--textColor,#57fff4)!important;
+  -webkit-text-fill-color:var(--textColor,#57fff4)!important;
+  background-image:none!important;
+}
+.layerText span{
+  color:inherit!important;
+  -webkit-text-fill-color:inherit!important;
+}
+.layerText.solid,
+.layerText.solid span{
+  color:var(--textColor,#57fff4)!important;
+  -webkit-text-fill-color:var(--textColor,#57fff4)!important;
+  background:none!important;
+}
+.layerText.customGradient,
+.layerText.rainbow,
+.layerText.aurora,
+.layerText.fireText,
+.layerText.iceText,
+.layerText.goldText{
+  color:var(--textColor,#57fff4)!important;
+  -webkit-text-fill-color:var(--textColor,#57fff4)!important;
+  background-image:none!important;
+}
+.waveLetters{animation:safeWaveText var(--textAnimSpeed,1.15s) ease-in-out infinite}
+.bounceLetters{animation:safeBounceText var(--textAnimSpeed,.9s) ease-in-out infinite}
+.glitchLetters{animation:safeGlitchText var(--textAnimSpeed,.55s) steps(2,end) infinite}
+.flickerLetters{animation:safeFlickerText var(--textAnimSpeed,1.2s) linear infinite}
+.typewriterLetters{animation:safeTypewriterFade .25s ease both}
+@keyframes safeWaveText{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes safeBounceText{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14px) scale(1.04)}}
+@keyframes safeGlitchText{0%,100%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}50%{transform:translate(2px,-1px)}75%{transform:translate(-1px,-2px)}}
+@keyframes safeFlickerText{0%,100%{opacity:1}45%{opacity:.72}50%{opacity:1}70%{opacity:.82}}
+@keyframes safeTypewriterFade{from{opacity:0}to{opacity:1}}
+
+
+/* ===== FINAL PREMIUM TEXT + IMAGE ANIMATION SYSTEM ===== */
+.layerText{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  min-width:1px!important;
+  min-height:1em!important;
+  overflow:visible!important;
+  opacity:1!important;
+  visibility:visible!important;
+  white-space:pre-wrap!important;
+  color:var(--textColor,#57fff4)!important;
+  -webkit-text-fill-color:var(--textColor,#57fff4)!important;
+  background-image:none!important;
+  position:relative;
+}
+.letterFlowWrap{
+  display:inline-block;
+  white-space:pre-wrap;
+  overflow:visible;
+}
+.flowChar{
+  display:inline-block;
+  color:inherit!important;
+  -webkit-text-fill-color:inherit!important;
+  transform-origin:center bottom;
+  will-change:transform,opacity,filter;
+}
+.flowLine{
+  display:block;
+}
+.waveLetters .flowChar{
+  animation:realLetterWave var(--textAnimSpeed,1.1s) ease-in-out infinite;
+  animation-delay:calc(var(--i) * var(--letterDelay,.055s));
+}
+.bounceLetters .flowChar{
+  animation:realLetterBounce var(--textAnimSpeed,.9s) cubic-bezier(.18,.9,.35,1.35) infinite;
+  animation-delay:calc(var(--i) * var(--letterDelay,.045s));
+}
+.glitchLetters .flowChar{
+  animation:realLetterGlitch var(--textAnimSpeed,.55s) steps(2,end) infinite;
+  animation-delay:calc(var(--i) * var(--letterDelay,.025s));
+}
+.flickerLetters .flowChar{
+  animation:realLetterFlicker var(--textAnimSpeed,1.2s) linear infinite;
+  animation-delay:calc(var(--i) * var(--letterDelay,.035s));
+}
+.typewriterLetters .flowChar{
+  opacity:0;
+  animation:realTypewriterLetter .18s linear forwards;
+  animation-delay:calc(var(--i) * var(--letterDelay,.055s));
+}
+.breatheText{
+  animation:realBreatheText var(--textAnimSpeed,2.2s) ease-in-out infinite;
+}
+@keyframes realLetterWave{
+  0%,100%{transform:translateY(0) rotate(0deg)}
+  20%{transform:translateY(-5px) rotate(-1deg)}
+  50%{transform:translateY(-18px) rotate(1.5deg)}
+  80%{transform:translateY(-5px) rotate(-.5deg)}
+}
+@keyframes realLetterBounce{
+  0%,100%{transform:translateY(0) scaleY(1)}
+  35%{transform:translateY(-22px) scaleY(1.08)}
+  60%{transform:translateY(5px) scaleY(.94)}
+  78%{transform:translateY(-6px) scaleY(1.02)}
+}
+@keyframes realLetterGlitch{
+  0%,100%{transform:translate(0,0);filter:hue-rotate(0deg)}
+  20%{transform:translate(-3px,2px);filter:hue-rotate(90deg)}
+  40%{transform:translate(3px,-2px);filter:hue-rotate(-120deg)}
+  60%{transform:translate(-2px,-2px);filter:hue-rotate(160deg)}
+  80%{transform:translate(2px,1px);filter:hue-rotate(-50deg)}
+}
+@keyframes realLetterFlicker{
+  0%,100%{opacity:1;filter:brightness(1)}
+  8%{opacity:.32;filter:brightness(2)}
+  10%{opacity:1}
+  42%{opacity:.65}
+  46%{opacity:1}
+  71%{filter:brightness(1.6)}
+}
+@keyframes realTypewriterLetter{to{opacity:1}}
+@keyframes realBreatheText{0%,100%{transform:scale(1)}50%{transform:scale(1.055)}}
+
+/* Real light sweep across the whole text */
+.textShimmer{
+  position:relative!important;
+  overflow:visible!important;
+}
+.textShimmer::after{
+  content:"";
+  position:absolute;
+  top:-18%;
+  bottom:-18%;
+  width:42%;
+  left:-55%;
+  pointer-events:none;
+  z-index:50;
+  background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,0) 30%,rgba(255,255,255,.95) 48%,rgba(255,255,255,.25) 55%,rgba(255,255,255,0) 70%,transparent 100%);
+  filter:blur(.5px);
+  mix-blend-mode:screen;
+  transform:skewX(-18deg);
+  animation:realTextShimmer var(--shimmerSpeed,2.2s) ease-in-out infinite;
+}
+@keyframes realTextShimmer{
+  0%,18%{left:-60%;opacity:0}
+  28%{opacity:1}
+  62%{left:118%;opacity:1}
+  75%,100%{left:118%;opacity:0}
+}
+
+/* Image burst / impact */
+.layerClip{position:relative}
+.layerMotion{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative}
+.layerImg{position:relative;z-index:2}
+.imageBurstFX{
+  position:absolute;
+  inset:-28%;
+  pointer-events:none;
+  z-index:5;
+  opacity:0;
+}
+.imageBurstFX::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  background:
+    radial-gradient(circle,rgba(255,255,255,.95) 0 3%,transparent 4%),
+    conic-gradient(from 0deg,transparent 0deg,rgba(255,255,255,.95) 9deg,transparent 20deg,transparent 38deg,rgba(0,170,255,.95) 48deg,transparent 62deg,transparent 80deg,rgba(255,122,0,.95) 91deg,transparent 108deg,transparent 138deg,rgba(255,255,255,.9) 148deg,transparent 162deg,transparent 190deg,rgba(87,255,244,.9) 202deg,transparent 218deg,transparent 245deg,rgba(255,255,255,.9) 257deg,transparent 272deg,transparent 300deg,rgba(255,204,66,.9) 314deg,transparent 330deg);
+  -webkit-mask:radial-gradient(circle,transparent 0 27%,#000 30% 55%,transparent 58%);
+  mask:radial-gradient(circle,transparent 0 27%,#000 30% 55%,transparent 58%);
+}
+.burstOnce .imageBurstFX{animation:realImageBurst var(--burstSpeed,.85s) ease-out both}
+.burstLoop .imageBurstFX{animation:realImageBurstLoop var(--burstSpeed,1.5s) ease-out infinite}
+@keyframes realImageBurst{
+  0%{opacity:0;transform:scale(.22) rotate(-18deg);filter:blur(6px)}
+  18%{opacity:1;transform:scale(.72) rotate(6deg);filter:blur(0)}
+  55%{opacity:.88;transform:scale(1.18) rotate(22deg)}
+  100%{opacity:0;transform:scale(1.62) rotate(38deg);filter:blur(4px)}
+}
+@keyframes realImageBurstLoop{
+  0%,66%,100%{opacity:0;transform:scale(.25) rotate(-18deg);filter:blur(6px)}
+  15%{opacity:1;transform:scale(.72) rotate(6deg);filter:blur(0)}
+  42%{opacity:.8;transform:scale(1.2) rotate(25deg)}
+  65%{opacity:0;transform:scale(1.6) rotate(40deg);filter:blur(4px)}
+}
+.imgPopBurst .layerMotion{animation:realImgPop var(--layerAnimSpeed,.75s) cubic-bezier(.17,.89,.32,1.35) both}
+.imgFloatLoop .layerMotion{animation:realImgFloat var(--layerAnimSpeed,3s) ease-in-out infinite}
+.imgPulseLoop .layerMotion{animation:realImgPulse var(--layerAnimSpeed,1.8s) ease-in-out infinite}
+.imgWiggleLoop .layerMotion{animation:realImgWiggle var(--layerAnimSpeed,1.7s) ease-in-out infinite}
+.imgSlowZoomIn .layerMotion{animation:realImgZoom var(--layerAnimSpeed,6s) linear infinite alternate}
+.imgHoverBounce .layerMotion{animation:realImgHover var(--layerAnimSpeed,2.2s) ease-in-out infinite}
+@keyframes realImgPop{0%{opacity:0;transform:scale(.35) rotate(-3deg)}60%{opacity:1;transform:scale(1.12) rotate(2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes realImgFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-22px)}}
+@keyframes realImgPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes realImgWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+@keyframes realImgZoom{0%{transform:scale(1)}100%{transform:scale(1.16)}}
+@keyframes realImgHover{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-18px) scale(1.03)}70%{transform:translateY(7px) scale(.995)}}
+
+
+
+/* ===== FINAL OVERRIDE: visible text + real shimmer/burst controls ===== */
+.layerText{
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  overflow:visible!important;
+  opacity:1!important;
+  visibility:visible!important;
+  color:var(--textColor,#57fff4)!important;
+  -webkit-text-fill-color:var(--textColor,#57fff4)!important;
+  background-image:none!important;
+  text-shadow:none;
+}
+.layerText .flowChar,.layerText .flowLine{
+  color:inherit!important;
+  -webkit-text-fill-color:inherit!important;
+}
+.flowChar{display:inline-block;white-space:pre;transform-origin:center bottom;will-change:transform,opacity,filter}
+.flowLine{display:block;white-space:pre}
+.waveLetters .flowChar{animation:realLetterWave var(--textAnimSpeed,1.15s) ease-in-out infinite;animation-delay:calc(var(--i) * var(--letterDelay,.055s))}
+.bounceLetters .flowChar{animation:realLetterBounce var(--textAnimSpeed,.9s) cubic-bezier(.18,.9,.35,1.35) infinite;animation-delay:calc(var(--i) * var(--letterDelay,.045s))}
+.glitchLetters .flowChar{animation:realLetterGlitch var(--textAnimSpeed,.55s) steps(2,end) infinite;animation-delay:calc(var(--i) * var(--letterDelay,.025s))}
+.flickerLetters .flowChar{animation:realLetterFlicker var(--textAnimSpeed,1.2s) linear infinite;animation-delay:calc(var(--i) * var(--letterDelay,.035s))}
+.typewriterLetters .flowChar{opacity:0;animation:realTypewriterLetter .18s linear forwards;animation-delay:calc(var(--i) * var(--letterDelay,.055s))}
+.breatheText{animation:realBreatheText var(--textAnimSpeed,2.2s) ease-in-out infinite}
+.textShimmer{position:relative!important;overflow:visible!important}
+.textShimmer::after{content:"";position:absolute;top:-18%;bottom:-18%;width:42%;left:-55%;pointer-events:none;z-index:50;background:linear-gradient(100deg,transparent 0%,rgba(255,255,255,0) 30%,rgba(255,255,255,.95) 48%,rgba(255,255,255,.25) 55%,rgba(255,255,255,0) 70%,transparent 100%);filter:blur(.5px);mix-blend-mode:screen;transform:skewX(-18deg);animation:realTextShimmer var(--shimmerSpeed,2.2s) ease-in-out infinite}
+.layerMotion{width:100%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;transform-origin:center center}
+.imageBurstFX{position:absolute;inset:-28%;pointer-events:none;z-index:5;opacity:0}
+.imageBurstFX::before{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.95) 0 3%,transparent 4%),conic-gradient(from 0deg,transparent 0deg,rgba(255,255,255,.95) 9deg,transparent 20deg,transparent 38deg,rgba(0,170,255,.95) 48deg,transparent 62deg,transparent 80deg,rgba(255,122,0,.95) 91deg,transparent 108deg,transparent 138deg,rgba(255,255,255,.9) 148deg,transparent 162deg,transparent 190deg,rgba(87,255,244,.9) 202deg,transparent 218deg,transparent 245deg,rgba(255,255,255,.9) 257deg,transparent 272deg,transparent 300deg,rgba(255,204,66,.9) 314deg,transparent 330deg);-webkit-mask:radial-gradient(circle,transparent 0 27%,#000 30% 55%,transparent 58%);mask:radial-gradient(circle,transparent 0 27%,#000 30% 55%,transparent 58%)}
+.burstOnce .imageBurstFX{animation:realImageBurst var(--burstSpeed,.85s) ease-out both}
+.burstLoop .imageBurstFX{animation:realImageBurstLoop var(--burstSpeed,1.5s) ease-out infinite}
+
+
+
+/* ===== RESTORED GRADIENT TEXT + VIDEO-STYLE IMAGE BURSTS ===== */
+.layerText{position:relative!important;display:block!important;overflow:visible!important;white-space:pre-wrap!important;opacity:1!important;visibility:visible!important;min-height:1em!important;paint-order:stroke fill;}
+.layerText.solid{background-image:none!important;color:var(--textColor,#57fff4)!important;-webkit-text-fill-color:var(--textColor,#57fff4)!important;}
+.layerText.rainbow,.layerText.aurora,.layerText.customGradient,.layerText.fireText,.layerText.iceText,.layerText.goldText{-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important;-webkit-text-fill-color:transparent!important;}
+.layerText.rainbow{background-image:linear-gradient(90deg,#ff0000,#ff9900,#ffff00,#00ff66,#00ccff,#6633ff,#ff00ff)!important;background-size:300% 100%!important;animation:rainbowMove 3s linear infinite;}
+.layerText.aurora{background-image:linear-gradient(120deg,#00eaff,#71ffb8,#fff,#b56cff,#ff8cff,#00aaff)!important;background-size:300% 300%!important;animation:auroraFlow 4s ease-in-out infinite;}
+.layerText.customGradient{background-image:linear-gradient(var(--gradientAngle,90deg),var(--gradient1,#00aaff),var(--gradient2,#ff7a00))!important;}
+.layerText.fireText{background-image:linear-gradient(180deg,#fff7a8,#ff9a00,#ff3300,#7a0000)!important;}
+.layerText.iceText{background-image:linear-gradient(180deg,#fff,#b9f7ff,#20bdff)!important;}
+.layerText.goldText{background-image:linear-gradient(180deg,#fff7bf,#ffd15a,#b87300)!important;}
+.layerText .flowChar,.layerText .flowLine{color:inherit!important;-webkit-text-fill-color:inherit!important;}
+.layerText.rainbow .flowChar,.layerText.aurora .flowChar,.layerText.customGradient .flowChar,.layerText.fireText .flowChar,.layerText.iceText .flowChar,.layerText.goldText .flowChar{color:transparent!important;-webkit-text-fill-color:transparent!important;background:inherit!important;background-image:inherit!important;background-size:inherit!important;background-position:inherit!important;-webkit-background-clip:text!important;background-clip:text!important;}
+.textShimmer::after{border-radius:20px;}
+
+.imageBurstFX{position:absolute;inset:-36%;pointer-events:none;z-index:5;opacity:0;mix-blend-mode:screen;}
+.imageBurstFX::before,.imageBurstFX::after{content:"";position:absolute;inset:0;border-radius:50%;}
+.imageBurstFX::before{background:conic-gradient(from -10deg,transparent 0 6deg,rgba(255,255,255,.98) 8deg 13deg,transparent 16deg 34deg,rgba(0,225,255,.95) 37deg 45deg,transparent 48deg 70deg,rgba(255,122,0,.95) 73deg 83deg,transparent 86deg 116deg,rgba(255,255,255,.95) 121deg 129deg,transparent 132deg 166deg,rgba(87,255,244,.9) 170deg 179deg,transparent 182deg 218deg,rgba(255,255,255,.95) 223deg 233deg,transparent 236deg 278deg,rgba(255,204,66,.95) 282deg 294deg,transparent 298deg 360deg);-webkit-mask:radial-gradient(circle,transparent 0 21%,#000 25% 58%,transparent 63%);mask:radial-gradient(circle,transparent 0 21%,#000 25% 58%,transparent 63%);filter:drop-shadow(0 0 12px rgba(255,255,255,.85));}
+.imageBurstFX::after{inset:22%;background:radial-gradient(circle,rgba(255,255,255,.98) 0 3%,transparent 5%),radial-gradient(circle,transparent 0 46%,rgba(255,255,255,.85) 48% 52%,transparent 55%);filter:blur(.5px);}
+.burstImpact .imageBurstFX{animation:burstVideoImpact var(--burstSpeed,.82s) cubic-bezier(.05,.78,.2,1) both;}
+.burstRing .imageBurstFX{animation:burstRingOut var(--burstSpeed,1s) ease-out both;}
+.burstStar .imageBurstFX{animation:burstStarFlash var(--burstSpeed,.72s) ease-out both;}
+.burstComet .imageBurstFX{animation:burstCometSpin var(--burstSpeed,1.15s) ease-out both;}
+.burstShockwave .imageBurstFX{animation:burstShockwave var(--burstSpeed,.9s) ease-out both;}
+.burstLoop .imageBurstFX{animation:burstVideoImpact var(--burstSpeed,1.35s) cubic-bezier(.05,.78,.2,1) infinite;}
+.burstOnce .imageBurstFX{animation:burstVideoImpact var(--burstSpeed,.82s) cubic-bezier(.05,.78,.2,1) both;}
+@keyframes burstVideoImpact{0%{opacity:0;transform:scale(.08) rotate(-25deg);filter:blur(7px)}13%{opacity:1;transform:scale(.45) rotate(6deg);filter:blur(0)}38%{opacity:1;transform:scale(1.02) rotate(22deg)}100%{opacity:0;transform:scale(1.78) rotate(44deg);filter:blur(4px)}}
+@keyframes burstRingOut{0%{opacity:0;transform:scale(.2);filter:blur(4px)}20%{opacity:1;transform:scale(.55);filter:blur(0)}100%{opacity:0;transform:scale(1.95);filter:blur(5px)}}
+@keyframes burstStarFlash{0%{opacity:0;transform:scale(.1) rotate(0)}18%{opacity:1;transform:scale(.75) rotate(20deg);filter:brightness(1.8)}55%{opacity:.95;transform:scale(1.15) rotate(32deg)}100%{opacity:0;transform:scale(1.4) rotate(40deg)}}
+@keyframes burstCometSpin{0%{opacity:0;transform:scale(.25) rotate(-140deg)}20%{opacity:1;transform:scale(.75) rotate(-20deg)}65%{opacity:.85;transform:scale(1.25) rotate(110deg)}100%{opacity:0;transform:scale(1.55) rotate(180deg)}}
+@keyframes burstShockwave{0%{opacity:0;transform:scale(.2);filter:blur(3px)}25%{opacity:1;transform:scale(.65);filter:blur(0)}70%{opacity:.55;transform:scale(1.45)}100%{opacity:0;transform:scale(2.05);filter:blur(6px)}}
+.imgImpactDrop .layerMotion{animation:imgImpactDrop var(--layerAnimSpeed,.75s) cubic-bezier(.08,.85,.18,1.25) both;}
+.imgRocketIn .layerMotion{animation:imgRocketIn var(--layerAnimSpeed,.85s) cubic-bezier(.16,.9,.24,1) both;}
+.imgSpinSlam .layerMotion{animation:imgSpinSlam var(--layerAnimSpeed,.85s) cubic-bezier(.17,.89,.32,1.35) both;}
+@keyframes imgImpactDrop{0%{opacity:0;transform:translateY(-90px) scale(.55) rotate(-4deg)}55%{opacity:1;transform:translateY(10px) scale(1.12) rotate(2deg)}72%{transform:translateY(-8px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes imgRocketIn{0%{opacity:0;transform:translateX(-160px) translateY(65px) scale(.35) rotate(-18deg);filter:blur(7px)}65%{opacity:1;transform:translateX(12px) translateY(-5px) scale(1.08) rotate(3deg);filter:blur(0)}100%{opacity:1;transform:translate(0,0) scale(1) rotate(0)}}
+@keyframes imgSpinSlam{0%{opacity:0;transform:scale(.15) rotate(-320deg)}65%{opacity:1;transform:scale(1.14) rotate(18deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+
 </style>
 </head>
 <body>
@@ -592,9 +1036,9 @@ function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll('"',"&qu
 function clamp(n,a,b){return Math.min(b,Math.max(a,n))}
 function slide(){return slides[currentIndex]}
 function layer(){return slide()?.layers.find(l=>l.id===selectedId)||null}
-function defaultText(text="New Text",x=50,y=82){return {id:id("txt"),type:"text",text,name:text,x,y,w:34,h:12,fontSize:72,effect:"solid",color:"#57fff4",gradient1:"#00aaff",gradient2:"#ff7a00",gradientAngle:90,stroke:3,opacity:100,locked:false}}
-function defaultImage(src="",fileName="",x=50,y=45){return {id:id("img"),type:"image",image:src,fileName,name:fileName||"Image",x,y,w:28,h:28,imgW:28,imgH:28,fit:"contain",cropX:0,cropY:0,cropZoom:100,opacity:100,locked:false}}
-function defaultSlide(){return {id:id("slide"),giftName:"New Gift",animation:"animPop",duration:0,layers:[defaultText()]}}
+function defaultText(text="New Text",x=50,y=82){return {id:id("txt"),type:"text",text,name:text,x,y,w:34,h:12,fontSize:72,effect:"solid",color:"#57fff4",gradient1:"#00aaff",gradient2:"#ff7a00",gradientAngle:90,stroke:3,opacity:100,locked:false,textAnimation:"none",textAnimationSpeed:1,animation:"none",animationSpeed:3}}
+function defaultImage(src="",fileName="",x=50,y=45){return {id:id("img"),type:"image",image:src,fileName,name:fileName||"Image",x,y,w:28,h:28,imgW:28,imgH:28,fit:"contain",cropX:0,cropY:0,cropZoom:100,opacity:100,locked:false,outline:0,outlineColor:"#ffffff",glow:0,glowColor:"#00AAFF",animation:"none",animationSpeed:3,particle:"none",outline:0,outlineColor:"#ffffff",glow:0,glowColor:"#00aaff",imageAnimation:"none",imageAnimationSpeed:1.4,burstEffect:"none",burstSpeed:.82,particle:"none",particleSpeed:2.4}}
+function defaultSlide(){return {id:id("slide"),giftName:"New Gift",animation:"none",duration:0,layers:[defaultText()]}}
 function normLayer(l){
   if(!l)return null;
   if(l.type==="image"){
@@ -612,7 +1056,14 @@ function normLayer(l){
       cropY:Number(l.cropY)||0,
       cropZoom:Number(l.cropZoom)||100,
       opacity:Number(l.opacity??100),
-      fit:l.fit||"contain"
+      fit:l.fit||"contain",outline:Number(l.outline??0),outlineColor:l.outlineColor||"#ffffff",glow:Number(l.glow??0),glowColor:l.glowColor||"#00aaff",imageAnimation:l.imageAnimation||l.animation||"none",imageAnimationSpeed:Number(l.imageAnimationSpeed??1.4),burstEffect:l.burstEffect||"none",burstSpeed:Number(l.burstSpeed??.82),particle:l.particle||"none",particleSpeed:Number(l.particleSpeed??2.4),
+      outline:Number(l.outline??0),
+      outlineColor:l.outlineColor||"#ffffff",
+      glow:Number(l.glow??0),
+      glowColor:l.glowColor||"#00AAFF",
+      animation:l.animation||"none",
+      animationSpeed:Number(l.animationSpeed??3),
+      particle:l.particle||"none"
     });
   }
   return Object.assign(defaultText(), l, {
@@ -631,12 +1082,16 @@ function normLayer(l){
     boxColor:l.boxColor||"#000000",
     boxOpacity:Number(l.boxOpacity??55),
     boxRadius:Number(l.boxRadius??18),
-    boxPad:Number(l.boxPad??10)
+    boxPad:Number(l.boxPad??10),textAnimation:l.textAnimation||"none",textAnimationSpeed:Number(l.textAnimationSpeed??1.15),textLetterDelay:Number(l.textLetterDelay??.055),textShimmer:!!l.textShimmer,textShimmerSpeed:Number(l.textShimmerSpeed??2.2),
+    textAnimation:l.textAnimation||"none",
+    textAnimationSpeed:Number(l.textAnimationSpeed??1),
+    animation:l.animation||"none",
+    animationSpeed:Number(l.animationSpeed??3)
   });
 }
 function normSlide(s){
   let n=Object.assign(defaultSlide(),s||{});
-  n.id=n.id||id("slide"); n.giftName=n.giftName||"New Gift"; n.animation=n.animation||"animPop"; n.duration=Number(n.duration)||0;
+  n.id=n.id||id("slide"); n.giftName=n.giftName||"New Gift"; n.animation=(n.animation===undefined||n.animation===null)?"none":n.animation; n.duration=Number(n.duration)||0;
   if(Array.isArray(s?.layers)) n.layers=s.layers.map(normLayer).filter(Boolean);
   else {
     n.layers=[];
@@ -690,7 +1145,7 @@ function renderSlides(){
         <button class="danger" title="Delete Slide" onclick="deleteSlide(${si})">Delete</button>
       </div>
       <label>Animation</label><select onchange="setSlideProp(${si}, 'animation', this.value)" onclick="event.stopPropagation()">
-        ${["animFade|Fade","animPop|Pop In","animBounce|Bounce","animSpin|Spin","animShake|Shake","animSlideUp|Slide Up","animFirePulse|Fire Pulse","animElectric|Electric Flicker","animZoomPunch|Zoom Punch","animGlitch|Glitch","animSoftFloat|Soft Float"].map(o=>{let [v,t]=o.split("|");return `<option value="${v}" ${s.animation===v?"selected":""}>${t}</option>`}).join("")}
+        ${["none|None","animFade|Fade","animPop|Pop In","animBounce|Bounce","animSpin|Spin","animShake|Shake","animSlideUp|Slide Up","animFirePulse|Fire Pulse","animElectric|Electric Flicker","animZoomPunch|Zoom Punch","animGlitch|Glitch","animSoftFloat|Soft Float"].map(o=>{let [v,t]=o.split("|");return `<option value="${v}" ${s.animation===v?"selected":""}>${t}</option>`}).join("")}
       </select>
       
       <label>Layers</label><div class="layerList">${s.layers.length?[...s.layers].map((l,li)=>layerHTML(si,li,l)).reverse().join(""):`<div class="emptyHint">No layers yet. Use T+ or 🖼+ to add one.</div>`}</div>`;
@@ -789,6 +1244,12 @@ function updateTextSliderLive(prop,value,labelId,suffix=""){
   if(el)el.textContent=value+suffix;
 }
 
+function updateLayerSliderLive(prop,value,labelId,suffix=""){
+  setLayerProp(prop,Number(value),false);
+  const el=document.getElementById(labelId);
+  if(el)el.textContent=value+suffix;
+}
+
 function updateGradientAngleLive(value){
   setLayerProp('gradientAngle',Number(value),false);
   const el=document.getElementById("gradientAngleValue");
@@ -801,44 +1262,122 @@ function autoGrowTextArea(el){
   el.style.height=Math.min(140, Math.max(42, el.scrollHeight))+"px";
 }
 
+
+function layerAnimationOptions(selected){
+  const opts=[
+    ["none","None"],
+    ["layerMotionFloat","Float"],
+    ["layerMotionBob","Bob Up / Down"],
+    ["layerMotionPulse","Pulse"],
+    ["layerMotionWiggle","Wiggle"],
+    ["layerMotionRotate","Rotate"],
+    ["layerMotionHover","Hover"],
+    ["layerMotionBounce","Bounce Loop"],
+    ["layerMotionZoomIn","Slow Zoom In"],
+    ["layerMotionZoomOut","Slow Zoom Out"],
+    ["layerMotionDriftLR","Drift Left / Right"],
+    ["layerMotionDriftUD","Drift Up / Down"]
+  ];
+  return opts.map(([v,t])=>`<option value="${v}" ${selected===v?"selected":""}>${t}</option>`).join("");
+}
+function textAnimationOptions(selected){
+  const opts=[
+    ["none","None"],
+    ["textWave","Wave Letters"],
+    ["textBounce","Bounce Letters"],
+    ["textTypewriter","Typewriter"],
+    ["textFlicker","Flicker"],
+    ["textNeonPulse","Neon Pulse"],
+    ["textGlitchLoop","Glitch Loop"],
+    ["textBreathing","Breathing"]
+  ];
+  return opts.map(([v,t])=>`<option value="${v}" ${selected===v?"selected":""}>${t}</option>`).join("");
+}
+function particleOptions(selected){
+  const opts=[
+    ["none","None"],
+    ["sparkles","Sparkles"],
+    ["stars","Stars"],
+    ["embers","Fire Embers"],
+    ["confetti","Confetti"],
+    ["lightning","Lightning"],
+    ["snow","Snow"]
+  ];
+  return opts.map(([v,t])=>`<option value="${v}" ${selected===v?"selected":""}>${t}</option>`).join("");
+}
+
+function applyTextEffect(t,l){
+  const effect=l.effect||"solid";
+  const color=l.color||"#57fff4";
+  t.className="layerText "+effect;
+  if(l.textAnimation && l.textAnimation!=="none")t.classList.add(l.textAnimation);
+  if(l.textShimmer)t.classList.add("textShimmer");
+  t.style.color=color;
+  t.style.setProperty("--textColor",color);
+  t.style.setProperty("--gradient1",l.gradient1||"#00aaff");
+  t.style.setProperty("--gradient2",l.gradient2||"#ff7a00");
+  t.style.setProperty("--gradientAngle",(l.gradientAngle||90)+"deg");
+  t.style.removeProperty("background-image");
+  t.style.removeProperty("-webkit-text-fill-color");
+
+  const gradientMap={
+    rainbow:"linear-gradient(90deg,#ff0000,#ff9900,#ffff00,#00ff66,#00ccff,#6633ff,#ff00ff)",
+    aurora:"linear-gradient(120deg,#00eaff,#71ffb8,#ffffff,#b56cff,#ff8cff,#00aaff)",
+    fireText:"linear-gradient(180deg,#fff7a8,#ff9a00,#ff3300,#7a0000)",
+    iceText:"linear-gradient(180deg,#ffffff,#b9f7ff,#20bdff)",
+    goldText:"linear-gradient(180deg,#fff7bf,#ffd15a,#b87300)",
+    customGradient:`linear-gradient(${l.gradientAngle||90}deg,${l.gradient1||"#00aaff"},${l.gradient2||"#ff7a00"})`
+  };
+
+  if(effect==="solid"){
+    t.style.backgroundImage="none";
+    t.style.webkitTextFillColor=color;
+  }else{
+    t.style.backgroundImage=gradientMap[effect]||gradientMap.customGradient;
+    t.style.backgroundSize=(effect==="rainbow"||effect==="aurora")?"300% 300%":"100% 100%";
+    t.style.webkitBackgroundClip="text";
+    t.style.backgroundClip="text";
+    t.style.webkitTextFillColor="transparent";
+    t.style.color="transparent";
+  }
+}
+
+function renderAnimatedText(el,l){
+  const raw=String((typeof l==="object"?l.text:l)||"");
+  const mode=(typeof l==="object"?l.textAnimation:"none")||"none";
+  if(!mode || mode==="none" || mode==="breatheText"){
+    el.textContent=raw;
+    return;
+  }
+  let i=0;
+  const lines=raw.split("\n");
+  el.innerHTML=lines.map(line=>{
+    const chars=line.split("").map(ch=>{
+      const n=i++;
+      return `<span class="flowChar" style="--i:${n}">${ch===" "?"&nbsp;":esc(ch)}</span>`;
+    }).join("");
+    return `<span class="flowLine">${chars || "&nbsp;"}</span>`;
+  }).join("");
+}
+
 function selectedControlsHTML(l){
   if(l.type==="text") return `<div style="grid-column:1/-1" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()">
     <label>Text</label>
-    <textarea
-      rows="1"
-      class="compactTextEditor"
-      onpointerdown="event.stopPropagation()"
-      onclick="event.stopPropagation()"
-      onkeydown="event.stopPropagation()"
-      onkeyup="event.stopPropagation()"
-      oninput="autoGrowTextArea(this); setLayerProp('text',this.value)"
-    >${esc(l.text)}</textarea>
+    <textarea rows="1" class="compactTextEditor" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()" oninput="autoGrowTextArea(this); setLayerProp('text',this.value)">${esc(l.text)}</textarea>
 
     <label>Style</label><select onchange="setLayerProp('effect',this.value)">
-      ${[
-  ["solid","Solid"],
-  ["customGradient","Custom Gradient"],
-  ["rainbow","Rainbow"],
-  ["aurora","Aurora"],
-  ["fireText","Fire Text"],
-  ["iceText","Ice Text"],
-  ["goldText","Gold Text"]
-].map(([value,label])=>`<option value="${value}" ${l.effect===value?"selected":""}>${label}</option>`).join("")}
+      ${[["solid","Solid"],["customGradient","Custom Gradient"],["rainbow","Rainbow"],["aurora","Aurora"],["fireText","Fire Text"],["iceText","Ice Text"],["goldText","Gold Text"]].map(([value,label])=>`<option value="${value}" ${l.effect===value?"selected":""}>${label}</option>`).join("")}
     </select>
+    ${l.effect==="solid" ? `<label>Solid Color</label>${colorPanelHTML("color",l.color||"#57fff4")}` : ""}
+    ${l.effect==="customGradient" ? `<label>Gradient 1</label>${colorPanelHTML("gradient1",l.gradient1||"#00aaff")}<label>Gradient 2</label>${colorPanelHTML("gradient2",l.gradient2||"#ff7a00")}<label>Gradient Angle <span id="gradientAngleValue">${l.gradientAngle||90}°</span></label><input type="range" min="0" max="360" value="${l.gradientAngle||90}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateGradientAngleLive(this.value)">` : ""}
 
-    ${l.effect==="solid" ? `
-      <label>Solid Color</label>
-      ${colorPanelHTML("color",l.color||"#57fff4")}
-    ` : ""}
-
-    ${l.effect==="customGradient" ? `
-      <label>Gradient 1</label>
-      ${colorPanelHTML("gradient1",l.gradient1||"#00aaff")}
-      <label>Gradient 2</label>
-      ${colorPanelHTML("gradient2",l.gradient2||"#ff7a00")}
-      <label>Gradient Angle <span id="gradientAngleValue">${l.gradientAngle||90}°</span></label>
-      <input type="range" min="0" max="360" value="${l.gradientAngle||90}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateGradientAngleLive(this.value)">
-    ` : ""}
+    <label>Text Animation</label><select onchange="setLayerProp('textAnimation',this.value)">
+      ${[["none","None"],["waveLetters","Wave Letters"],["bounceLetters","Bounce Letters"],["typewriterLetters","Typewriter"],["glitchLetters","Glitch Letters"],["flickerLetters","Flicker Letters"],["breatheText","Breathing"]].map(([v,t])=>`<option value="${v}" ${l.textAnimation===v?"selected":""}>${t}</option>`).join("")}
+    </select>
+    <label>Text Animation Speed <span id="textAnimationSpeedValue">${l.textAnimationSpeed||1.15}s</span></label><input type="range" min=".2" max="5" step=".05" value="${l.textAnimationSpeed||1.15}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('textAnimationSpeed',this.value,'textAnimationSpeedValue','s')">
+    <label>Letter Flow Delay <span id="textLetterDelayValue">${l.textLetterDelay??.055}s</span></label><input type="range" min="0" max=".25" step=".005" value="${l.textLetterDelay??.055}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('textLetterDelay',this.value,'textLetterDelayValue','s')">
+    <label>Light Shimmer</label><select onchange="setLayerProp('textShimmer',this.value==='yes')"><option value="no" ${!l.textShimmer?"selected":""}>Off</option><option value="yes" ${l.textShimmer?"selected":""}>On</option></select>
+    ${l.textShimmer ? `<label>Shimmer Speed <span id="textShimmerSpeedValue">${l.textShimmerSpeed||2.2}s</span></label><input type="range" min=".4" max="6" step=".05" value="${l.textShimmerSpeed||2.2}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('textShimmerSpeed',this.value,'textShimmerSpeedValue','s')">` : ""}
 
     <label>Font Size <span id="fontSizeValue">${Math.round(l.fontSize)}px</span></label><input type="range" min="10" max="220" value="${l.fontSize}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateTextSliderLive('fontSize',this.value,'fontSizeValue','px')">
     <label>Outline <span id="strokeValue">${l.stroke}px</span></label><input type="range" min="0" max="14" step=".5" value="${l.stroke}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateTextSliderLive('stroke',this.value,'strokeValue','px')">
@@ -846,6 +1385,14 @@ function selectedControlsHTML(l){
   </div>`;
   return `<div style="grid-column:1/-1" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation()">
     <div class="row"><button class="dark" onclick="replaceImage()">Replace</button><button class="dark" onclick="resetCrop()">Reset Crop</button></div>
+    <label>Image Animation</label><select onchange="setLayerProp('imageAnimation',this.value)">${[["none","None"],["imgPopBurst","Pop + Burst"],["imgImpactDrop","Impact Drop"],["imgRocketIn","Rocket In"],["imgSpinSlam","Spin Slam"],["imgFloatLoop","Float"],["imgPulseLoop","Pulse"],["imgWiggleLoop","Wiggle"],["imgSlowZoomIn","Slow Zoom"],["imgHoverBounce","Hover Bounce"]].map(([v,t])=>`<option value="${v}" ${l.imageAnimation===v?"selected":""}>${t}</option>`).join("")}</select>
+    <label>Image Animation Speed <span id="imageAnimationSpeedValue">${l.imageAnimationSpeed||1.4}s</span></label><input type="range" min=".2" max="8" step=".05" value="${l.imageAnimationSpeed||1.4}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('imageAnimationSpeed',this.value,'imageAnimationSpeedValue','s')">
+    <label>Burst Effect</label><select onchange="setLayerProp('burstEffect',this.value)">${[["none","None"],["burstImpact","Video Style Impact Burst"],["burstRing","Expanding Ring"],["burstStar","Star Flash"],["burstComet","Comet Spin"],["burstShockwave","Shockwave"],["burstLoop","Looping Burst"]].map(([v,t])=>`<option value="${v}" ${l.burstEffect===v?"selected":""}>${t}</option>`).join("")}</select>
+    ${l.burstEffect && l.burstEffect!=="none" ? `<label>Burst Speed <span id="burstSpeedValue">${l.burstSpeed||.82}s</span></label><input type="range" min=".25" max="4" step=".05" value="${l.burstSpeed||.82}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('burstSpeed',this.value,'burstSpeedValue','s')">` : ""}
+    <label>Image Outline <span id="imageOutlineValue">${l.outline||0}px</span></label><input type="range" min="0" max="24" step="1" value="${l.outline||0}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('outline',this.value,'imageOutlineValue','px')">
+    <label>Outline Color</label>${colorPanelHTML("outlineColor",l.outlineColor||"#ffffff")}
+    <label>Image Glow <span id="imageGlowValue">${l.glow||0}px</span></label><input type="range" min="0" max="60" step="1" value="${l.glow||0}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateLayerSliderLive('glow',this.value,'imageGlowValue','px')">
+    <label>Glow Color</label>${colorPanelHTML("glowColor",l.glowColor||"#00aaff")}
     <label>Opacity <span id="opacityValue">${l.opacity}%</span></label><input type="range" min="0" max="100" value="${l.opacity}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateTextSliderLive('opacity',this.value,'opacityValue','%')">
     <label>Crop Zoom <span id="cropZoomValue">${l.cropZoom}%</span></label><input type="range" min="20" max="300" value="${l.cropZoom}" onpointerdown="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" oninput="updateTextSliderLive('cropZoom',this.value,'cropZoomValue','%')">
     <p class="help">Hold Alt and drag image handles to crop. Normal handles resize. Hold Alt and drag the image itself to move it inside the crop.</p>
@@ -856,51 +1403,157 @@ function renderStage(restart=false){
   animWrap.innerHTML="";
   if(!slide())return;
   slide().layers.forEach(l=>animWrap.appendChild(makeLayer(l)));
-  if(restart){animWrap.className=""; void animWrap.offsetWidth; animWrap.classList.add(slide().animation||"animPop")}
+  if(restart){animWrap.className=""; void animWrap.offsetWidth; if(slide().animation && slide().animation!=="none")animWrap.classList.add(slide().animation)}
+}
+
+
+function buildOutlineFilter(l){
+  const outline=Number(l.outline||0);
+  const glow=Number(l.glow||0);
+  const outlineColor=l.outlineColor||"#ffffff";
+  const glowColor=l.glowColor||"#00AAFF";
+  const parts=[];
+  if(outline>0){
+    const steps=Math.min(10, Math.max(1, Math.ceil(outline/3)));
+    for(let i=1;i<=steps;i++){
+      const d=Math.max(1, Math.round(outline*i/steps));
+      parts.push(`drop-shadow(${d}px 0 0 ${outlineColor})`);
+      parts.push(`drop-shadow(${-d}px 0 0 ${outlineColor})`);
+      parts.push(`drop-shadow(0 ${d}px 0 ${outlineColor})`);
+      parts.push(`drop-shadow(0 ${-d}px 0 ${outlineColor})`);
+    }
+  }
+  if(glow>0)parts.push(`drop-shadow(0 0 ${glow}px ${glowColor})`);
+  return parts.join(" ");
+}
+function renderAnimatedText(el,l){
+  const layerData = (l && typeof l === "object") ? l : {text:String(l||""), textAnimation:"none", textAnimationSpeed:1.15, textLetterDelay:.055};
+  const raw=String(layerData.text||"");
+  const mode=layerData.textAnimation||"none";
+
+  el.classList.remove(
+    "letterAnim","textWave","textBounce","textTypewriter","textFlicker","textNeonPulse","textGlitchLoop","textBreathing",
+    "waveLetters","bounceLetters","typewriterLetters","glitchLetters","flickerLetters","breatheText"
+  );
+
+  el.style.setProperty("--textAnimSpeed",(Number(layerData.textAnimationSpeed)||1.15)+"s");
+  el.style.setProperty("--letterDelay",(Number(layerData.textLetterDelay) || .055)+"s");
+
+  if(!mode || mode==="none"){
+    el.textContent=raw || "New Text";
+    return;
+  }
+
+  el.classList.add(mode);
+
+  if(mode==="breatheText"){
+    el.textContent=raw || "New Text";
+    return;
+  }
+
+  let i=0;
+  const lines=(raw || "New Text").split("\n");
+  el.innerHTML=lines.map(line=>{
+    const chars=Array.from(line).map(ch=>{
+      const n=i++;
+      const safe=ch===" " ? "&nbsp;" : esc(ch);
+      return `<span class="flowChar" style="--i:${n}">${safe}</span>`;
+    }).join("");
+    return `<span class="flowLine">${chars || "&nbsp;"}</span>`;
+  }).join("");
+}
+function makeParticles(type){
+  if(!type||type==="none")return null;
+  const layer=document.createElement("div");
+  const cls={sparkle:"particleSparkles",sparkles:"particleSparkles",stars:"particleStars",embers:"particleEmbers",confetti:"particleConfetti",lightning:"particleLightning",snow:"particleSnow"}[type]||"particleSparkles";
+  layer.className="particleLayer "+cls;
+  const count=type==="lightning"?8:type==="confetti"?18:14;
+  const colors=["#ff3131","#ffbd59","#57fff4","#7ed957","#cb6ce6","#ffffff"];
+  for(let i=0;i<count;i++){
+    const s=document.createElement("span");
+    const px=(8+((i*37)%86));
+    const py=(6+((i*53)%88));
+    s.style.setProperty("--px",px+"%");
+    s.style.setProperty("--py",py+"%");
+    s.style.setProperty("--ps",(type==="embers"?8+(i%5)*2:12+(i%6)*3)+"px");
+    s.style.setProperty("--pd",(i*.17).toFixed(2)+"s");
+    s.style.setProperty("--pdur",(1.5+(i%5)*.35).toFixed(2)+"s");
+    s.style.setProperty("--pc",colors[i%colors.length]);
+    layer.appendChild(s);
+  }
+  return layer;
 }
 
 function makeLayer(l){
   const cropped = l.type==="image" && l.fit==="cover";
   const box=document.createElement("div");
   box.className="layerBox"+(cropped?" imageCropped":"")+(l.id===selectedId?" selected":"")+(l.locked?" locked":"");
+
+  if(l.type==="image" && l.imageAnimation && l.imageAnimation!=="none")box.classList.add(l.imageAnimation);
+  if(l.type==="image" && l.burstEffect && l.burstEffect!=="none")box.classList.add(l.burstEffect);
+
   box.dataset.id=l.id;
   box.style.left=l.x+"%";
   box.style.top=l.y+"%";
   box.style.width=l.w+"%";
   box.style.height=l.h+"%";
   box.style.opacity=(l.opacity??100)/100;
+  box.style.setProperty("--layerAnimSpeed",(Number(l.imageAnimationSpeed)||1.4)+"s");
+  box.style.setProperty("--burstSpeed",(Number(l.burstSpeed)||.85)+"s");
+
   if(l.type==="image"){
-    const innerW = ((l.imgW||l.w) / Math.max(l.w, 0.0001)) * 100;
-    const innerH = ((l.imgH||l.h) / Math.max(l.h, 0.0001)) * 100;
-    box.style.setProperty("--imgInnerW", innerW + "%");
-    box.style.setProperty("--imgInnerH", innerH + "%");
+    const innerW=((l.imgW||l.w)/Math.max(l.w,0.0001))*100;
+    const innerH=((l.imgH||l.h)/Math.max(l.h,0.0001))*100;
+    box.style.setProperty("--imgInnerW",innerW+"%");
+    box.style.setProperty("--imgInnerH",innerH+"%");
   }
-  const clip=document.createElement("div"); clip.className="layerClip";
+
+  const clip=document.createElement("div");
+  clip.className="layerClip";
+
   if(l.type==="image"){
+    const motion=document.createElement("div");
+    motion.className="layerMotion";
+
     const img=document.createElement("img");
     img.className="layerImg";
     img.src=l.image||"";
     img.style.objectFit="contain";
     img.style.transform=`translate(${l.cropX||0}px,${l.cropY||0}px) scale(${(l.cropZoom||100)/100})`;
-    clip.appendChild(img);
-  } else {
+
+    const imageFilter = (typeof filterForImageLayer==="function") ? filterForImageLayer(l) : buildOutlineFilter(l);
+    if(imageFilter)img.style.filter=imageFilter;
+
+    motion.appendChild(img);
+    clip.appendChild(motion);
+
+    if(l.burstEffect && l.burstEffect!=="none"){
+      const burst=document.createElement("div");
+      burst.className="imageBurstFX";
+      clip.appendChild(burst);
+    }
+  }else{
     const t=document.createElement("div");
     t.className="layerText "+(l.effect||"solid");
-    t.textContent=l.text||"";
+
+    if(l.textAnimation && l.textAnimation!=="none")t.classList.add(l.textAnimation);
+    if(l.textShimmer)t.classList.add("textShimmer");
+
+    const visibleColor=l.color||"#57fff4";
+    t.style.setProperty("--textAnimSpeed",(Number(l.textAnimationSpeed)||1.15)+"s");
+    t.style.setProperty("--letterDelay",(Number(l.textLetterDelay) || .055)+"s");
+    t.style.setProperty("--shimmerSpeed",(Number(l.textShimmerSpeed)||2.2)+"s");
+
     t.style.fontSize=(l.fontSize||72)+"px";
     t.style.webkitTextStroke=(l.stroke||0)+"px black";
-    t.style.setProperty("--textColor",l.color||"#57fff4");
+    t.style.setProperty("--textColor",visibleColor);
     t.style.setProperty("--gradient1",l.gradient1||"#00aaff");
     t.style.setProperty("--gradient2",l.gradient2||"#ff7a00");
     t.style.setProperty("--gradientAngle",(l.gradientAngle||90)+"deg");
 
-    if(l.effect==="solid"){
-      t.style.backgroundImage="none";
-      t.style.color=l.color||"#57fff4";
-      t.style.webkitTextFillColor=l.color||"#57fff4";
-    }else{
-      t.style.color="transparent";
-    }
+    applyTextEffect(t,l);
+
+    renderAnimatedText(t,l);
 
     t.addEventListener("dblclick",e=>{
       e.preventDefault();
@@ -908,10 +1561,19 @@ function makeLayer(l){
       selectedId=l.id;
       editText(l.id);
     });
+
     clip.appendChild(t);
   }
+
   box.appendChild(clip);
-  handles.forEach(h=>{const d=document.createElement("div"); d.className="handle "+h; d.dataset.handle=h; box.appendChild(d)});
+
+  handles.forEach(h=>{
+    const d=document.createElement("div");
+    d.className="handle "+h;
+    d.dataset.handle=h;
+    box.appendChild(d);
+  });
+
   box.addEventListener("dblclick",e=>{
     e.preventDefault();
     e.stopPropagation();
@@ -921,6 +1583,7 @@ function makeLayer(l){
       editText(l.id);
     }
   }, true);
+
   box.addEventListener("pointerdown",e=>startEdit(e,l.id));
   return box;
 }
@@ -959,9 +1622,9 @@ function setLayerProp(p,v,hist=true){
 
   // Do NOT rebuild the left menu while typing or dragging sliders.
   // Rebuilding destroys the active input/slider and causes one-letter typing.
-  const liveOnlyProps=["text","fontSize","stroke","opacity","cropZoom","color","gradient1","gradient2","gradientAngle"];
+  const liveOnlyProps=["text","fontSize","stroke","opacity","cropZoom","color","gradient1","gradient2","gradientAngle","outline","glow","animationSpeed","textAnimationSpeed","textLetterDelay","textShimmerSpeed","imageAnimationSpeed","burstSpeed","particleSpeed","outlineColor","glowColor"];
   if(liveOnlyProps.includes(p)){
-    if(["color","gradient1","gradient2"].includes(p)){
+    if(["color","gradient1","gradient2","outlineColor","glowColor"].includes(p)){
       // Color swatches/custom picker rebuild the menu so the dropdown preview updates.
       renderAll(false);
     }else{
@@ -1277,7 +1940,7 @@ function editText(lid){
   };
 
   ta.addEventListener("keydown",e=>{
-    if(e.key==="Enter"&&!e.shiftKey){
+    if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){
       e.preventDefault();
       finish();
     }
