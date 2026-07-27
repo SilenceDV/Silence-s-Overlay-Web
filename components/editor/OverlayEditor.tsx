@@ -1,2 +1,120 @@
-"use client";import { useCallback,useRef } from "react";import { useEditorState } from "@/hooks/useEditorState";import { useAutosave } from "@/hooks/useAutosave";import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";import { CanvasStage } from "./CanvasStage";import { EditorSidebar } from "./EditorSidebar";import { EditorToolbar } from "./EditorToolbar";
-export function OverlayEditor(){const {state,slide,layer,api}=useEditorState();const input=useRef<HTMLInputElement>(null);const replace=useRef(false);useKeyboardShortcuts(api,state.selectedLayerId);useAutosave(state.project,state.saveStatus==="dirty",useCallback(api.markSaved,[api]));const pick=(isReplace=false)=>{replace.current=isReplace;input.current?.click()};const file=(f?:File)=>{if(!f)return;const reader=new FileReader();reader.onload=()=>{const url=String(reader.result);if(replace.current&&layer?.type==="image")api.updateLayer(layer.id,{imageUrl:url,fileName:f.name,name:f.name});else api.addImage(url,f.name);};reader.readAsDataURL(f);};return <div className="editor-shell"><EditorSidebar state={state} slide={slide} layer={layer} api={api} onReplace={()=>pick(true)}/><section className="editor-workspace"><EditorToolbar api={api} layer={layer} onAddImage={()=>pick(false)}/><CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api}/></section><input ref={input} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>file(e.target.files?.[0])}/></div>}
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAutosave, LOCAL_PROJECT_KEY } from "@/hooks/useAutosave";
+import { useEditorState } from "@/hooks/useEditorState";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { defaultProject } from "@/lib/editor/defaults";
+import { deserializeProject, serializeProject } from "@/lib/editor/serialization";
+import { CanvasStage } from "./CanvasStage";
+import { EditorSidebar } from "./EditorSidebar";
+import { EditorToolbar } from "./EditorToolbar";
+
+const MAX_IMAGE_BYTES = 8_000_000;
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+export function OverlayEditor() {
+  const { state, slide, layer, api } = useEditorState();
+  const imageInput = useRef<HTMLInputElement>(null);
+  const projectInput = useRef<HTMLInputElement>(null);
+  const replace = useRef(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const markSaved = useCallback(() => api.markSaved(), [api]);
+  const markSaveError = useCallback(() => api.markSaveError(), [api]);
+
+  useKeyboardShortcuts(api, state.selectedLayerId);
+  useAutosave(state.project, state.saveStatus === "dirty", markSaved, markSaveError);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_PROJECT_KEY);
+      if (saved) api.replaceProject(deserializeProject(saved));
+    } catch {
+      setNotice("The saved local project could not be loaded.");
+    }
+    // Restore once on initial mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pickImage = (isReplace = false) => {
+    replace.current = isReplace;
+    imageInput.current?.click();
+  };
+
+  const readImage = (file?: File) => {
+    if (!file) return;
+    if (!IMAGE_TYPES.has(file.type)) {
+      setNotice("Choose a PNG, JPEG, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setNotice("Images must be smaller than 8 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => setNotice("The image could not be read.");
+    reader.onload = () => {
+      const url = String(reader.result);
+      if (replace.current && layer?.type === "image") api.updateLayer(layer.id, { imageUrl: url, fileName: file.name, name: file.name });
+      else api.addImage(url, file.name);
+      setNotice(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const exportProject = () => {
+    const blob = new Blob([serializeProject(state.project)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${state.project.name.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "overlay"}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const importProject = (file?: File) => {
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setNotice("Project files must be smaller than 8 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => setNotice("The project file could not be read.");
+    reader.onload = () => {
+      try {
+        api.replaceProject(deserializeProject(String(reader.result)));
+        setNotice("Project imported successfully.");
+      } catch {
+        setNotice("That file is not a valid overlay project.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const resetProject = () => {
+    if (window.confirm("Start a new project? Your current local project will be replaced.")) {
+      api.replaceProject(defaultProject());
+      localStorage.removeItem(LOCAL_PROJECT_KEY);
+      setNotice("New project created.");
+    }
+  };
+
+  return <div className="editor-shell">
+    <EditorSidebar state={state} slide={slide} layer={layer} api={api} onReplace={() => pickImage(true)} />
+    <section className="editor-workspace">
+      <EditorToolbar
+        api={api}
+        layer={layer}
+        canUndo={state.past.length > 0}
+        canRedo={state.future.length > 0}
+        onAddImage={() => pickImage(false)}
+        onExport={exportProject}
+        onImport={() => projectInput.current?.click()}
+        onReset={resetProject}
+      />
+      {notice && <div className="editor-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
+      <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} />
+    </section>
+    <input ref={imageInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { readImage(event.target.files?.[0]); event.target.value = ""; }} />
+    <input ref={projectInput} hidden type="file" accept="application/json,.json" onChange={(event) => { importProject(event.target.files?.[0]); event.target.value = ""; }} />
+  </div>;
+}

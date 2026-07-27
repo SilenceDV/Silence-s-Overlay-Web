@@ -1,2 +1,2 @@
-import { Fragment } from "react"; import type { ReactNode } from "react";
+import React, { Fragment } from "react"; import type { ReactNode } from "react";
 export function renderTextCharacters(text:string,animated:boolean):ReactNode {if(!animated)return text;let index=0;return text.split("\n").map((line,li)=><Fragment key={li}>{Array.from(line).map(char=><span aria-hidden="true" className="wave-character" style={{"--character-index":index++} as React.CSSProperties} key={index}>{char===" "?"\u00a0":char}</span>)}{li<text.split("\n").length-1&&<br/>}</Fragment>);}

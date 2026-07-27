@@ -1,1 +1,13 @@
-import { renderToStaticMarkup } from "react-dom/server";import { expect,it } from "vitest";import { renderTextCharacters } from "@/lib/animations/textWave";it("renders per-character spans while preserving spaces and lines",()=>{const html=renderToStaticMarkup(<>{renderTextCharacters("A B\nC",true)}</>);expect(html.match(/wave-character/g)).toHaveLength(4);expect(html).toContain("<br/>");expect(html).toContain("A");});
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { expect, it } from "vitest";
+import { renderTextCharacters } from "@/lib/animations/textWave";
+
+it("renders per-character spans while preserving spaces and lines", () => {
+  const html = renderToStaticMarkup(
+    <>{renderTextCharacters("A B\nC", true)}</>,
+  );
+  expect(html.match(/wave-character/g)).toHaveLength(4);
+  expect(html).toContain("<br/>");
+  expect(html).toContain("A");
+});
