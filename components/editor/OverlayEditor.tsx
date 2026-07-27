@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { defaultProject } from "@/lib/editor/defaults";
 import { deserializeProject, serializeProject } from "@/lib/editor/serialization";
+import { MAX_RAW_IMAGE_BYTES } from "@/lib/validation/projectSchemas";
 import { CanvasStage } from "./CanvasStage";
 import { EditorSidebar } from "./EditorSidebar";
 import { EditorToolbar } from "./EditorToolbar";
 
-const MAX_IMAGE_BYTES = 8_000_000;
+const MAX_PROJECT_BYTES = 8_000_000;
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export function OverlayEditor({initialProject,projectId,version,proAccess}:{initialProject: import("@/types/editor").Project;projectId:string;version:number;proAccess:boolean}) {
@@ -29,7 +29,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   }, [markSaveError]);
 
   useKeyboardShortcuts(api, state.selectedLayerId);
-  const versionRef=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaving, markSaved, showSaveError);
+  const saveCoordinator=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaving, markSaved, showSaveError);
 
   useEffect(() => { api.replaceProject(initialProject); /* initial database hydration only */
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,8 +48,8 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
       setNotice("Choose a PNG, JPEG, or WebP image.");
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setNotice("Images must be smaller than 8 MB.");
+    if (file.size > MAX_RAW_IMAGE_BYTES) {
+      setNotice("Images must be smaller than 6 MB so the encoded project can be saved.");
       return;
     }
     const reader = new FileReader();
@@ -63,7 +63,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     reader.readAsDataURL(file);
   };
 
-  const saveNow=async()=>{try{const r=await fetch(`/api/projects/${projectId}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({project:state.project,version:versionRef.current})}),d=await r.json();if(!r.ok)throw new Error(d.message);versionRef.current=d.version;api.markSaved();setNotice("Project saved.")}catch(e){api.markSaveError();setNotice(e instanceof Error?e.message:"Save failed.")}};
+  const saveNow=async()=>{ await saveCoordinator.saveNow(state.project); setNotice("Project saved."); };
 
   const exportProject = () => {
     const blob = new Blob([serializeProject(state.project)], { type: "application/json" });
@@ -76,7 +76,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
 
   const importProject = (file?: File) => {
     if (!file) return;
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (file.size > MAX_PROJECT_BYTES) {
       setNotice("Project files must be smaller than 8 MB.");
       return;
     }
@@ -84,7 +84,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     reader.onerror = () => setNotice("The project file could not be read.");
     reader.onload = () => {
       try {
-        const imported=deserializeProject(String(reader.result)); if(!proAccess&&imported.slides.length>1){setUpgrade(true);return;} api.replaceProject(imported);
+        const imported=deserializeProject(String(reader.result)); if(!proAccess&&imported.slides.length>1){setUpgrade(true);return;} imported.id=projectId; api.replaceProject(imported);
         setNotice("Project imported successfully.");
       } catch {
         setNotice("That file is not a valid overlay project.");
@@ -95,8 +95,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
 
   const resetProject = () => {
     if (window.confirm("Start a new project? Your current local project will be replaced.")) {
-      api.replaceProject(defaultProject());
-      setNotice("New project created.");
+      fetch("/api/projects", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).then(async (response) => { const created = await response.json(); if (!response.ok) throw new Error(created.message); location.href = `/editor?id=${created.id}`; }).catch((error) => setNotice(error instanceof Error ? error.message : "Project creation failed."));
     }
   };
 

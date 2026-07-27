@@ -31,3 +31,7 @@ Copy `.env.example` to `.env.local` and set all values. In Vercel â†’ Project â†
 ## 5. Deploy
 
 Run `npm install`, `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build`. Push the committed branch connected to Vercel, apply the migration to production, configure the production webhook, deploy, and repeat the acceptance tests against the deployed HTTPS routes.
+
+## Billing concurrency migration and dispute policy
+
+Apply all pending migrations with `supabase db push`, including `202607270002_billing_concurrency.sql`. It adds atomic Checkout/event claims, retry leases, and atomic project rename support. A new dispute suspends access immediately. A closed dispute restores access only when Stripe reports `won`; all other outcomes remain suspended for manual review.

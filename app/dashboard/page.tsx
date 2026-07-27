@@ -1,2 +1,11 @@
-import Link from "next/link";import {requireUser} from "@/lib/auth/server";import {createSupabaseAdminClient} from "@/lib/supabase/server";import {getEntitlements} from "@/lib/billing/entitlements";import {DashboardClient} from "@/components/dashboard/DashboardClient";
-export default async function Dashboard(){const user=await requireUser(),db=createSupabaseAdminClient();const [{data:projects},{data:overlays},e]=await Promise.all([db.from("projects").select("id,name,version,updated_at").eq("owner_id",user.id).order("updated_at",{ascending:false}),db.from("overlays").select("project_id,public_id,enabled").eq("owner_id",user.id),getEntitlements(user.id)]);return <main className="page wide"><nav className="nav"><Link href="/">Silence&apos;s Overlay Maker</Link><div><Link href="/billing">Billing</Link><form action="/api/auth/logout" method="post"><button>Log out</button></form></div></nav><DashboardClient initialProjects={projects??[]} initialOverlays={overlays??[]} plan={e.plan}/></main>}
+import Link from "next/link";
+import { DashboardClient } from "@/components/dashboard/DashboardClient";
+import { requireUser } from "@/lib/auth/server";
+import { getEntitlements } from "@/lib/billing/entitlements";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
+export default async function Dashboard() {
+  const user = await requireUser(); const db = createSupabaseAdminClient();
+  const [projects, overlays, entitlements] = await Promise.all([db.from("projects").select("id,name,version,updated_at").eq("owner_id", user.id).order("updated_at", { ascending: false }), db.from("overlays").select("project_id,public_id,enabled,requires_pro").eq("owner_id", user.id), getEntitlements(user.id)]);
+  if (projects.error) throw projects.error; if (overlays.error) throw overlays.error;
+  return <main className="page wide"><nav className="nav"><Link href="/">Silence&apos;s Overlay Maker</Link><div><Link href="/billing">Billing</Link><form action="/api/auth/logout" method="post"><button>Log out</button></form></div></nav><DashboardClient initialProjects={projects.data ?? []} initialOverlays={overlays.data ?? []} plan={entitlements.plan} proAccess={entitlements.proAccess}/></main>;
+}
