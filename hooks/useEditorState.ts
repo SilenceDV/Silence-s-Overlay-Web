@@ -44,6 +44,8 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
   if (action.type === "save-status") return { ...state, saveStatus: action.status };
   if (action.type === "replace-project") return initialState(action.project);
   if (action.type === "undo" || action.type === "redo") {
+    const hasHistory = action.type === "undo" ? state.past.length > 0 : state.future.length > 0;
+    if (!hasHistory) return state;
     const history = action.type === "undo"
       ? undoProject(state.past, state.project, state.future)
       : redoProject(state.past, state.project, state.future);
