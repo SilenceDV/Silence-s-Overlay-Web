@@ -16,7 +16,15 @@ async function subscriptionIdFromEvent(event: Stripe.Event) {
 
 async function setSuspension(customerId: string, suspended: boolean, event: Stripe.Event) {
   const db = createSupabaseAdminClient();
-  const { error } = await db.from("subscriptions").update({ suspended, last_event_created: event.created, last_stripe_event_id: event.id, updated_at: new Date().toISOString() }).eq("stripe_customer_id", customerId);
+  // Apply this through an atomic database function. Stripe does not guarantee
+  // webhook delivery order, so a delayed dispute resolution must not undo a
+  // newer refund suspension (and a same-second suspension wins over a restore).
+  const { error } = await db.rpc("set_subscription_suspension", {
+    p_customer_id: customerId,
+    p_suspended: suspended,
+    p_event_created: event.created,
+    p_event_id: event.id,
+  });
   if (error) throw error;
 }
 
