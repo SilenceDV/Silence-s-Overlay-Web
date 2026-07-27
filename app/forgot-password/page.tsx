@@ -1,0 +1,1 @@
+export default function Forgot(){return <main className="auth-page"><form className="card auth-card" action="/api/auth/forgot" method="post"><h1>Reset password</h1><p>We will email you a secure reset link.</p><label>Email<input required type="email" name="email"/></label><button>Send reset link</button></form></main>}
