@@ -20,7 +20,20 @@ export function useAutosave(project: Project, dirty: boolean, projectId: string,
   }, { saving: () => callbacks.current.onSaving(), saved: (savedRevision) => { if (savedRevision === revision.current) callbacks.current.onSaved(); }, error: (message) => callbacks.current.onError(message) });
 
   useEffect(() => { coordinator.current?.setServerVersion(initialVersion); }, [initialVersion]);
-  useEffect(() => { revision.current += 1; if (!dirty) return; const current = revision.current; const timer = window.setTimeout(() => coordinator.current?.enqueue(project, current), AUTOSAVE_DELAY); return () => window.clearTimeout(timer); }, [project, dirty]);
+  useEffect(() => {
+    // Clearing `dirty` from the saving callback is only a status update; it does
+    // not supersede the snapshot already in flight. Only a new dirty snapshot
+    // should advance the revision used to decide whether that save is current.
+    if (!dirty) return;
+
+    revision.current += 1;
+    const current = revision.current;
+    const timer = window.setTimeout(
+      () => coordinator.current?.enqueue(project, current),
+      AUTOSAVE_DELAY,
+    );
+    return () => window.clearTimeout(timer);
+  }, [project, dirty]);
   useEffect(() => () => coordinator.current?.stop(), []);
   const saveNow = useCallback((snapshot: Project) => coordinator.current!.enqueue(snapshot, revision.current), []);
   return { version: coordinator.current, saveNow };
