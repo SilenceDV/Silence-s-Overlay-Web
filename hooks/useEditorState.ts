@@ -146,6 +146,7 @@ export function useEditorState() {
         }
       }),
       replaceProject: (project: Project) => dispatch({ type: "replace-project", project }),
+      markSaving: () => dispatch({ type: "save-status", status: "saving" }),
       markSaved: () => dispatch({ type: "save-status", status: "saved" }),
       markSaveError: () => dispatch({ type: "save-status", status: "error" }),
     };
