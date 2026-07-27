@@ -20,11 +20,16 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   const replace = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [upgrade,setUpgrade]=useState(false);
+  const markSaving = useCallback(() => api.markSaving(), [api]);
   const markSaved = useCallback(() => api.markSaved(), [api]);
   const markSaveError = useCallback(() => api.markSaveError(), [api]);
+  const showSaveError = useCallback((message?: string) => {
+    markSaveError();
+    setNotice(message ?? "Save failed.");
+  }, [markSaveError]);
 
   useKeyboardShortcuts(api, state.selectedLayerId);
-  const versionRef=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaved, (message) => { markSaveError(); setNotice(message ?? "Save failed."); });
+  const versionRef=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaving, markSaved, showSaveError);
 
   useEffect(() => { api.replaceProject(initialProject); /* initial database hydration only */
     // eslint-disable-next-line react-hooks/exhaustive-deps

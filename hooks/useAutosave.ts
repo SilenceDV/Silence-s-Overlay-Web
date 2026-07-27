@@ -1,2 +1,62 @@
-"use client";import {useEffect,useRef} from "react";import {AUTOSAVE_DELAY} from "@/lib/editor/constants";import type {Project} from "@/types/editor";
-export function useAutosave(project:Project,dirty:boolean,projectId:string,initialVersion:number,onSaved:()=>void,onError:(message?:string)=>void){const version=useRef(initialVersion);useEffect(()=>{version.current=initialVersion},[initialVersion]);useEffect(()=>{if(!dirty)return;const controller=new AbortController(),timer=window.setTimeout(async()=>{try{const r=await fetch(`/api/projects/${projectId}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({project,version:version.current}),signal:controller.signal});const data=await r.json();if(!r.ok)throw new Error(data.message);version.current=data.version;onSaved()}catch(e){if(!controller.signal.aborted)onError(e instanceof Error?e.message:undefined)}},AUTOSAVE_DELAY);return()=>{window.clearTimeout(timer);controller.abort()}},[project,dirty,projectId,onSaved,onError]);return version}
+"use client";
+
+import { useEffect, useRef } from "react";
+import { AUTOSAVE_DELAY } from "@/lib/editor/constants";
+import type { Project } from "@/types/editor";
+
+export function useAutosave(
+  project: Project,
+  dirty: boolean,
+  projectId: string,
+  initialVersion: number,
+  onSaving: () => void,
+  onSaved: () => void,
+  onError: (message?: string) => void,
+) {
+  const version = useRef(initialVersion);
+  const requestSequence = useRef(0);
+  const callbacks = useRef({ onSaving, onSaved, onError });
+
+  useEffect(() => {
+    version.current = initialVersion;
+  }, [initialVersion]);
+
+  useEffect(() => {
+    callbacks.current = { onSaving, onSaved, onError };
+  }, [onSaving, onSaved, onError]);
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    const sequence = ++requestSequence.current;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      callbacks.current.onSaving();
+      try {
+        const response = await fetch(`/api/projects/${projectId}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ project, version: version.current }),
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message ?? "Save failed.");
+        if (sequence !== requestSequence.current) return;
+        version.current = data.version;
+        callbacks.current.onSaved();
+      } catch (error) {
+        if (!controller.signal.aborted && sequence === requestSequence.current) {
+          callbacks.current.onError(error instanceof Error ? error.message : undefined);
+        }
+      }
+    }, AUTOSAVE_DELAY);
+
+    return () => {
+      requestSequence.current += 1;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [project, dirty, projectId]);
+
+  return version;
+}
