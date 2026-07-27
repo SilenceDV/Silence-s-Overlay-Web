@@ -13,7 +13,7 @@ export type EditorAction =
   | { type: "undo" }
   | { type: "redo" }
   | { type: "save-status"; status: EditorState["saveStatus"] }
-  | { type: "replace-project"; project: Project };
+  | { type: "replace-project"; project: Project; dirty?: boolean };
 
 const initialState = (project = defaultProject()): EditorState => ({
   project,
@@ -42,7 +42,10 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
   }
   if (action.type === "select-layer") return { ...state, selectedLayerId: action.id };
   if (action.type === "save-status") return { ...state, saveStatus: action.status };
-  if (action.type === "replace-project") return initialState(action.project);
+  if (action.type === "replace-project") {
+    const next = initialState(action.project);
+    return action.dirty ? { ...next, saveStatus: "dirty" } : next;
+  }
   if (action.type === "undo" || action.type === "redo") {
     const hasHistory = action.type === "undo" ? state.past.length > 0 : state.future.length > 0;
     if (!hasHistory) return state;
@@ -145,7 +148,7 @@ export function useEditorState() {
           item.y = clamp(item.y + dy, 0, 100);
         }
       }),
-      replaceProject: (project: Project) => dispatch({ type: "replace-project", project }),
+      replaceProject: (project: Project, dirty = false) => dispatch({ type: "replace-project", project, dirty }),
       markSaving: () => dispatch({ type: "save-status", status: "saving" }),
       markSaved: () => dispatch({ type: "save-status", status: "saved" }),
       markSaveError: () => dispatch({ type: "save-status", status: "error" }),

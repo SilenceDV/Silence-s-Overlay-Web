@@ -84,7 +84,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     reader.onerror = () => setNotice("The project file could not be read.");
     reader.onload = () => {
       try {
-        const imported=deserializeProject(String(reader.result)); if(!proAccess&&imported.slides.length>1){setUpgrade(true);return;} imported.id=projectId; api.replaceProject(imported);
+        const imported=deserializeProject(String(reader.result)); if(!proAccess&&imported.slides.length>1){setUpgrade(true);return;} imported.id=projectId; api.replaceProject(imported, true);
         setNotice("Project imported successfully.");
       } catch {
         setNotice("That file is not a valid overlay project.");
