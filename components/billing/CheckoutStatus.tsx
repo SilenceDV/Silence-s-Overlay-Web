@@ -1,0 +1,4 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+export function CheckoutStatus({state}:{state?:string}){const router=useRouter(),[timedOut,setTimedOut]=useState(false);useEffect(()=>{if(state!=="success")return;let tries=0,stopped=false;const poll=async()=>{tries++;try{const response=await fetch("/api/subscription",{cache:"no-store"}),data=await response.json();if(data.proAccess){stopped=true;router.refresh();return}}catch{}if(tries>=15){setTimedOut(true);return}if(!stopped)setTimeout(poll,tries<5?1000:2000)};poll();return()=>{stopped=true}},[state,router]);if(state==="canceled")return <p className="muted" role="status">Checkout was canceled. You were not charged.</p>;if(state!=="success")return null;return <p className={timedOut?"error":"success"} role="status">{timedOut?"Activation is taking longer than usual. Check the billing portal or refresh shortly.":"Payment received. Activating Pro…"}</p>}

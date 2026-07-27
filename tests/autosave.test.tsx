@@ -33,7 +33,7 @@ it("keeps the save request alive when onSaving clears the dirty status", async (
   });
 
   expect(fetchMock).toHaveBeenCalledOnce();
-  expect(requestSignal?.aborted).toBe(false);
+  expect(requestSignal).toBeUndefined(); // serialized saves are never aborted
 
   await act(async () => {
     resolveFetch(new Response(JSON.stringify({ version: 2 }), { status: 200 }));

@@ -1,64 +1,27 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { AUTOSAVE_DELAY } from "@/lib/editor/constants";
+import { SaveCoordinator } from "@/lib/projects/saveCoordinator";
 import type { Project } from "@/types/editor";
 
-export function useAutosave(
-  project: Project,
-  dirty: boolean,
-  projectId: string,
-  initialVersion: number,
-  onSaving: () => void,
-  onSaved: () => void,
-  onError: (message?: string) => void,
-) {
-  const version = useRef(initialVersion);
-  const requestSequence = useRef(0);
+export function useAutosave(project: Project, dirty: boolean, projectId: string, initialVersion: number,
+  onSaving: () => void, onSaved: () => void, onError: (message?: string) => void) {
+  const revision = useRef(0);
   const callbacks = useRef({ onSaving, onSaved, onError });
-  const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
+  const coordinator = useRef<SaveCoordinator | null>(null);
+  callbacks.current = { onSaving, onSaved, onError };
 
-  useEffect(() => {
-    version.current = initialVersion;
-  }, [initialVersion]);
+  if (!coordinator.current) coordinator.current = new SaveCoordinator(initialVersion, async (snapshot, version) => {
+    const response = await fetch(`/api/projects/${projectId}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ project: snapshot, version }) });
+    const data = await response.json();
+    if (!response.ok) { const error = Object.assign(new Error(data.message ?? "Save failed."), { status: response.status, version: data.version }); throw error; }
+    return data;
+  }, { saving: () => callbacks.current.onSaving(), saved: (savedRevision) => { if (savedRevision === revision.current) callbacks.current.onSaved(); }, error: (message) => callbacks.current.onError(message) });
 
-  useEffect(() => {
-    callbacks.current = { onSaving, onSaved, onError };
-  }, [onSaving, onSaved, onError]);
-
-  useEffect(() => {
-    if (!dirtyRef.current) return;
-
-    const sequence = ++requestSequence.current;
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      callbacks.current.onSaving();
-      try {
-        const response = await fetch(`/api/projects/${projectId}`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ project, version: version.current }),
-          signal: controller.signal,
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message ?? "Save failed.");
-        if (sequence !== requestSequence.current) return;
-        version.current = data.version;
-        callbacks.current.onSaved();
-      } catch (error) {
-        if (!controller.signal.aborted && sequence === requestSequence.current) {
-          callbacks.current.onError(error instanceof Error ? error.message : undefined);
-        }
-      }
-    }, AUTOSAVE_DELAY);
-
-    return () => {
-      requestSequence.current += 1;
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [project, projectId]);
-
-  return version;
+  useEffect(() => { coordinator.current?.setServerVersion(initialVersion); }, [initialVersion]);
+  useEffect(() => { revision.current += 1; if (!dirty) return; const current = revision.current; const timer = window.setTimeout(() => coordinator.current?.enqueue(project, current), AUTOSAVE_DELAY); return () => window.clearTimeout(timer); }, [project, dirty]);
+  useEffect(() => () => coordinator.current?.stop(), []);
+  const saveNow = useCallback((snapshot: Project) => coordinator.current!.enqueue(snapshot, revision.current), []);
+  return { version: coordinator.current, saveNow };
 }
