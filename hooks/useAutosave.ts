@@ -16,6 +16,8 @@ export function useAutosave(
   const version = useRef(initialVersion);
   const requestSequence = useRef(0);
   const callbacks = useRef({ onSaving, onSaved, onError });
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
   useEffect(() => {
     version.current = initialVersion;
@@ -26,7 +28,7 @@ export function useAutosave(
   }, [onSaving, onSaved, onError]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirtyRef.current) return;
 
     const sequence = ++requestSequence.current;
     const controller = new AbortController();
@@ -56,7 +58,7 @@ export function useAutosave(
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [project, dirty, projectId]);
+  }, [project, projectId]);
 
   return version;
 }
