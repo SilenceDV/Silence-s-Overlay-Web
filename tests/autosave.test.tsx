@@ -1,3 +1,4 @@
+import React, { StrictMode, type ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -40,4 +41,45 @@ it("keeps the save request alive when onSaving clears the dirty status", async (
   });
 
   expect(onSaved).toHaveBeenCalledOnce();
+});
+
+it("continues autosaving after Strict Mode replays the lifecycle effect", async () => {
+  vi.useFakeTimers();
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({ version: 2 }), { status: 200 }),
+  );
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <StrictMode>{children}</StrictMode>
+  );
+
+  renderHook(
+    () => useAutosave(defaultProject(), true, "project-1", 1, vi.fn(), vi.fn(), vi.fn()),
+    { wrapper },
+  );
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY);
+  });
+
+  expect(fetchMock).toHaveBeenCalledOnce();
+});
+
+it("uses a new coordinator when the project id changes", async () => {
+  vi.useFakeTimers();
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({ version: 2 }), { status: 200 }),
+  );
+  const project = defaultProject();
+  const { rerender } = renderHook(
+    ({ projectId }) => useAutosave(project, true, projectId, 1, vi.fn(), vi.fn(), vi.fn()),
+    { initialProps: { projectId: "project-1" } },
+  );
+
+  rerender({ projectId: "project-2" });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY);
+  });
+
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(fetchMock).toHaveBeenCalledWith("/api/projects/project-2", expect.any(Object));
 });

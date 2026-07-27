@@ -22,6 +22,7 @@ export class SaveCoordinator {
 
   get serverVersion() { return this.version; }
   setServerVersion(version: number) { this.version = version; }
+  start() { this.stopped = false; }
 
   enqueue(project: Project, revision: number) {
     if (this.stopped) return Promise.resolve();
