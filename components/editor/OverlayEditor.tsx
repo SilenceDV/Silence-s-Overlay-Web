@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAutosave, LOCAL_PROJECT_KEY } from "@/hooks/useAutosave";
+import { useAutosave } from "@/hooks/useAutosave";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { defaultProject } from "@/lib/editor/defaults";
@@ -13,28 +13,24 @@ import { EditorToolbar } from "./EditorToolbar";
 const MAX_IMAGE_BYTES = 8_000_000;
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 
-export function OverlayEditor() {
+export function OverlayEditor({initialProject,projectId,version,proAccess}:{initialProject: import("@/types/editor").Project;projectId:string;version:number;proAccess:boolean}) {
   const { state, slide, layer, api } = useEditorState();
   const imageInput = useRef<HTMLInputElement>(null);
   const projectInput = useRef<HTMLInputElement>(null);
   const replace = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [upgrade,setUpgrade]=useState(false);
   const markSaved = useCallback(() => api.markSaved(), [api]);
   const markSaveError = useCallback(() => api.markSaveError(), [api]);
 
   useKeyboardShortcuts(api, state.selectedLayerId);
-  useAutosave(state.project, state.saveStatus === "dirty", markSaved, markSaveError);
+  const versionRef=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaved, (message) => { markSaveError(); setNotice(message ?? "Save failed."); });
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_PROJECT_KEY);
-      if (saved) api.replaceProject(deserializeProject(saved));
-    } catch {
-      setNotice("The saved local project could not be loaded.");
-    }
-    // Restore once on initial mount only.
+  useEffect(() => { api.replaceProject(initialProject); /* initial database hydration only */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialProject]);
+  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(state.saveStatus==="dirty"||state.saveStatus==="saving"){e.preventDefault();e.returnValue=""}};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn)},[state.saveStatus]);
+  const limitedApi={...api,addSlide:()=>proAccess?api.addSlide():setUpgrade(true),duplicateSlide:(id:string)=>proAccess?api.duplicateSlide(id):setUpgrade(true)};
 
   const pickImage = (isReplace = false) => {
     replace.current = isReplace;
@@ -62,6 +58,8 @@ export function OverlayEditor() {
     reader.readAsDataURL(file);
   };
 
+  const saveNow=async()=>{try{const r=await fetch(`/api/projects/${projectId}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({project:state.project,version:versionRef.current})}),d=await r.json();if(!r.ok)throw new Error(d.message);versionRef.current=d.version;api.markSaved();setNotice("Project saved.")}catch(e){api.markSaveError();setNotice(e instanceof Error?e.message:"Save failed.")}};
+
   const exportProject = () => {
     const blob = new Blob([serializeProject(state.project)], { type: "application/json" });
     const link = document.createElement("a");
@@ -81,7 +79,7 @@ export function OverlayEditor() {
     reader.onerror = () => setNotice("The project file could not be read.");
     reader.onload = () => {
       try {
-        api.replaceProject(deserializeProject(String(reader.result)));
+        const imported=deserializeProject(String(reader.result)); if(!proAccess&&imported.slides.length>1){setUpgrade(true);return;} api.replaceProject(imported);
         setNotice("Project imported successfully.");
       } catch {
         setNotice("That file is not a valid overlay project.");
@@ -93,16 +91,15 @@ export function OverlayEditor() {
   const resetProject = () => {
     if (window.confirm("Start a new project? Your current local project will be replaced.")) {
       api.replaceProject(defaultProject());
-      localStorage.removeItem(LOCAL_PROJECT_KEY);
       setNotice("New project created.");
     }
   };
 
   return <div className="editor-shell">
-    <EditorSidebar state={state} slide={slide} layer={layer} api={api} onReplace={() => pickImage(true)} />
+    <EditorSidebar state={state} slide={slide} layer={layer} api={limitedApi} onReplace={() => pickImage(true)} />
     <section className="editor-workspace">
       <EditorToolbar
-        api={api}
+        api={limitedApi}
         layer={layer}
         canUndo={state.past.length > 0}
         canRedo={state.future.length > 0}
@@ -110,10 +107,12 @@ export function OverlayEditor() {
         onExport={exportProject}
         onImport={() => projectInput.current?.click()}
         onReset={resetProject}
+        onSave={saveNow}
       />
       {notice && <div className="editor-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
       <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} />
     </section>
+    {upgrade&&<div className="modal-backdrop"><section className="card upgrade-modal"><h2>Unlock unlimited slides</h2><p>Free projects support one slide. Pro unlocks unlimited slides, premium animations, and hosted Pro overlays.</p><div className="actions"><a className="button" href="/billing">Upgrade to Pro</a><button onClick={()=>setUpgrade(false)}>Not now</button></div></section></div>}
     <input ref={imageInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { readImage(event.target.files?.[0]); event.target.value = ""; }} />
     <input ref={projectInput} hidden type="file" accept="application/json,.json" onChange={(event) => { importProject(event.target.files?.[0]); event.target.value = ""; }} />
   </div>;

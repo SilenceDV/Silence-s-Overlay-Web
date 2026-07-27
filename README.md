@@ -1,5 +1,18 @@
-# Silence's Overlay Web
+# Silence's Overlay Maker
 
-A typed Next.js overlay editor migrated from the archived single-file prototype. Run `npm install`, then `npm run dev`. Production setup is documented in `docs/setup.md`.
+A production-oriented Next.js subscription app for designing and publishing animated browser-source overlays. It uses Supabase Auth/Postgres with RLS as authoritative storage and Stripe Checkout, Customer Portal, and signed webhooks for billing.
 
-`archive/Overlay4-legacy.html` is retained only as a non-production behavioral reference. It is excluded from TypeScript, lint, and all application imports.
+## Local development
+
+Follow [the complete setup guide](docs/setup.md), copy `.env.example` to `.env.local`, apply `supabase/migrations/202607270001_subscription_app.sql`, then run `npm install && npm run dev`.
+
+## Validation
+
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+Never expose the Supabase service role or Stripe secret in browser code. Checkout redirects do not grant access; verified Stripe webhooks update subscription state.

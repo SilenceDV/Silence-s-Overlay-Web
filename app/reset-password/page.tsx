@@ -1,0 +1,1 @@
+export default function Reset(){return <main className="auth-page"><form className="card auth-card" action="/api/auth/reset" method="post"><h1>Choose a new password</h1><label>New password<input required minLength={8} type="password" name="password"/></label><button>Update password</button></form></main>}

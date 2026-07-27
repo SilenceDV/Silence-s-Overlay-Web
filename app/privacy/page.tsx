@@ -1,0 +1,1 @@
+import Link from "next/link";export default function Privacy(){return <main className="page"><Link href="/">← Home</Link><h1>Privacy</h1><p>We use Supabase for accounts and project storage and Stripe for payments. We do not store card numbers. Public overlay pages expose only the published design snapshot.</p><p>Contact support to request account or project deletion.</p></main>}
