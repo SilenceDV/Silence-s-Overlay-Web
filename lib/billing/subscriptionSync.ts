@@ -23,7 +23,9 @@ export async function synchronizeSubscription(subscription: Stripe.Subscription,
     price_id: subscription.items.data[0]?.price?.id ?? null, status: subscription.status,
     current_period_start: iso(periodStart), current_period_end: iso(periodEnd),
     cancel_at_period_end: subscription.cancel_at_period_end, canceled_at: iso(subscription.canceled_at),
-    trial_end: iso(subscription.trial_end), grace_period_end: grace, suspended: false,
+    // Deliberately omit `suspended`. Billing lifecycle events are not risk
+    // decisions and an upsert must preserve an existing payment-risk hold.
+    trial_end: iso(subscription.trial_end), grace_period_end: grace,
     last_event_created: event.created, last_stripe_event_id: event.id, updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
   if (error) throw error;
