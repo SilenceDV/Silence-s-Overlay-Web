@@ -15,4 +15,8 @@ npm run test
 npm run build
 ```
 
+## Continuous integration
+
+GitHub Actions automatically checks pull requests to `main` with the repository's typecheck, lint, unit-test, production-build, and whitespace checks. A green CI result validates the application code only; it does not replace the separate Supabase database verification still required for PR #13.
+
 Never expose the Supabase service role or Stripe secret in browser code. Checkout redirects do not grant access; verified Stripe webhooks update subscription state.
