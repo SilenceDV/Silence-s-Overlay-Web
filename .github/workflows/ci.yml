@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Typecheck, lint, test, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-test-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-test-service-role-key
+      STRIPE_SECRET_KEY: sk_test_ci_only_not_a_real_key
+      STRIPE_WEBHOOK_SECRET: whsec_ci_only_not_a_real_secret
+      STRIPE_PRO_PRICE_ID: price_ci_only_not_a_real_price
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Check pull request changes for whitespace errors
+        if: github.event_name == 'pull_request'
+        run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+
+      - name: Check pushed changes for whitespace errors
+        if: github.event_name == 'push'
+        run: |
+          before="${{ github.event.before }}"
+          if [[ "$before" =~ ^0+$ ]]; then
+            if git rev-parse --verify "${GITHUB_SHA}^" >/dev/null 2>&1; then
+              git diff --check "${GITHUB_SHA}^" "$GITHUB_SHA"
+            else
+              empty_tree="$(git hash-object -t tree /dev/null)"
+              git diff --check "$empty_tree" "$GITHUB_SHA"
+            fi
+          else
+            git diff --check "$before" "$GITHUB_SHA"
+          fi
+
+      - name: Check manually dispatched commit for whitespace errors
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if git rev-parse --verify "${GITHUB_SHA}^" >/dev/null 2>&1; then
+            git diff --check "${GITHUB_SHA}^" "$GITHUB_SHA"
+          else
+            empty_tree="$(git hash-object -t tree /dev/null)"
+            git diff --check "$empty_tree" "$GITHUB_SHA"
+          fi
