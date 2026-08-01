@@ -135,11 +135,14 @@ export function useEditorState() {
         copy.name += " Duplicate";
         copy.layers.forEach((item) => { item.id = createId(item.type); });
         project.slides.splice(index + 1, 0, copy);
-      }),
+      }, {selectSlideId: state.project.slides.find(item=>item.id===id)?.id, selectLayerId: null}),
       reorderSlides: (from: number, to: number) => mutate((project) => {
         if (from < 0 || to < 0 || from >= project.slides.length || to >= project.slides.length || from === to) return;
         const [item] = project.slides.splice(from, 1);
         project.slides.splice(to, 0, item);
+      }),
+      reorderLayers: (slideId:string,from:number,to:number)=>mutate((project)=>{
+        const owner=project.slides.find(item=>item.id===slideId);if(!owner||from<0||to<0||from>=owner.layers.length||to>=owner.layers.length||from===to)return;const[item]=owner.layers.splice(from,1);owner.layers.splice(to,0,item);
       }),
       nudge: (id: string, dx: number, dy: number) => mutate((project) => {
         const item = project.slides.flatMap((candidate) => candidate.layers).find((candidate) => candidate.id === id);

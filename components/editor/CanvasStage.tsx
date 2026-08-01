@@ -1,64 +1,48 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
-import type { EditorApi } from "@/hooks/useEditorState";
-import { animationClass, animationStyle } from "@/lib/animations/layerAnimations";
-import { renderTextCharacters } from "@/lib/animations/textWave";
-import { clamp } from "@/lib/editor/geometry";
-import type { EditorSettings, Layer, Slide } from "@/types/editor";
-import { StageViewport } from "./StageViewport";
-
-function stageDelta(event: ReactPointerEvent, previousX: number, previousY: number) {
-  const stage = event.currentTarget.closest(".stage")?.getBoundingClientRect();
-  if (!stage?.width || !stage.height) return { x: 0, y: 0 };
-  return { x: (event.clientX - previousX) / stage.width * 100, y: (event.clientY - previousY) / stage.height * 100 };
-}
-
-function StageLayer({ layer, selected, api }: { layer: Layer; selected: boolean; api: EditorApi }) {
-  const pointerDown = (event: ReactPointerEvent<HTMLElement>) => {
-    if (layer.locked) return;
-    event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.dataset.px = String(event.clientX);
-    event.currentTarget.dataset.py = String(event.clientY);
-  };
-  const pointerMove = (event: ReactPointerEvent<HTMLElement>) => {
-    const element = event.currentTarget;
-    if (!element.hasPointerCapture(event.pointerId)) return;
-    const px = Number(element.dataset.px);
-    const py = Number(element.dataset.py);
-    if (!Number.isFinite(px) || !Number.isFinite(py)) return;
-    const delta = stageDelta(event, px, py);
-    api.updateLayer(layer.id, { x: clamp(layer.x + delta.x, 0, 100), y: clamp(layer.y + delta.y, 0, 100) });
-    element.dataset.px = String(event.clientX);
-    element.dataset.py = String(event.clientY);
-  };
-  const resizeDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.dataset.px = String(event.clientX);
-    event.currentTarget.dataset.py = String(event.clientY);
-  };
-  const resizeMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const element = event.currentTarget;
-    if (!element.hasPointerCapture(event.pointerId)) return;
-    const px = Number(element.dataset.px);
-    const py = Number(element.dataset.py);
-    const delta = stageDelta(event, px, py);
-    api.updateLayer(layer.id, { w: clamp(layer.w + delta.x, 1, 100), h: clamp(layer.h + delta.y, 1, 100) });
-    element.dataset.px = String(event.clientX);
-    element.dataset.py = String(event.clientY);
-  };
-
-  const style = { left: `${layer.x}%`, top: `${layer.y}%`, width: `${layer.w}%`, height: `${layer.h}%`, opacity: layer.opacity / 100, ...animationStyle(layer.animation) };
-  return <div className={`stage-layer ${selected ? "selected" : ""}`} style={style} onClick={(event) => { event.stopPropagation(); api.selectLayer(layer.id); }} onPointerDown={pointerDown} onPointerMove={pointerMove}>
-    <div className={animationClass(layer.animation)}>
-      {layer.type === "text"
-        ? <div aria-label={layer.text} className={`text-content effect-${layer.effect}`} style={{ fontSize: layer.fontSize, color: layer.color, "--gradient-one": layer.gradient1, "--gradient-two": layer.gradient2, "--gradient-angle": `${layer.gradientAngle}deg`, WebkitTextStroke: `${layer.stroke}px #000` } as React.CSSProperties}>{renderTextCharacters(layer.text, ["wave", "bounce-wave"].includes(layer.animation.type))}</div>
-        : <div className="image-clip" style={{ outline: layer.outline ? `${layer.outline}px solid ${layer.outlineColor}` : undefined }}><img draggable={false} alt={layer.name} src={layer.imageUrl} style={{ objectFit: layer.fit, transform: `translate(${layer.cropX}%,${layer.cropY}%) scale(${layer.cropZoom / 100})`, filter: `drop-shadow(0 0 ${layer.glow}px ${layer.glowColor})` }} /></div>}
-    </div>
-    {selected && !layer.locked && <button type="button" aria-label={`Resize ${layer.name}`} className="resize-handle" onPointerDown={resizeDown} onPointerMove={resizeMove} />}
-  </div>;
-}
-
-export function CanvasStage({ slide, settings, selected, api }: { slide: Slide; settings: EditorSettings; selected: string | null; api: EditorApi }) {
-  return <main className="canvas-area"><StageViewport preview={settings.preview}><div className={`slide-content entrance-${slide.entranceAnimation}`} onClick={() => api.selectLayer(null)}>{settings.showCenter && <div className="center-guides" />}{settings.showSafe && <div className="safe-guide" />}{slide.layers.map((layer) => <StageLayer key={layer.id} layer={layer} selected={layer.id === selected} api={api} />)}</div></StageViewport></main>;
-}
+"use client";
+import {useState,type CSSProperties,type PointerEvent as RPE} from "react";import type {EditorApi} from "@/hooks/useEditorState";import type {EditorSettings,ImageLayer,Layer,Slide,TextLayer} from "@/types/editor";import {StageViewport} from "./StageViewport";
+const handles=["nw","n","ne","e","se","s","sw","w"] as const;
+const point=(e:RPE)=>{const r=e.currentTarget.closest(".stage")!.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*100,y:(e.clientY-r.top)/r.height*100,px:(e.clientX-r.left)/r.width*1920,py:(e.clientY-r.top)/r.height*1080}};
+function StageLayer({layer,selected,api}:{layer:Layer;selected:boolean;api:EditorApi}){const[editing,setEditing]=useState(false);const[start,setStart]=useState<null|{x:number;y:number;px:number;py:number;layer:Layer;handle:string;alt:boolean}>(null);const down=(e:RPE,handle="")=>{e.preventDefault();e.stopPropagation();api.selectLayer(layer.id);if(layer.locked)return;e.currentTarget.setPointerCapture(e.pointerId);setStart({...point(e),layer:structuredClone(layer),handle,alt:e.altKey})};const move=(e:RPE)=>{if(!start||!e.currentTarget.hasPointerCapture(e.pointerId))return;const p=point(e),dx=p.x-start.x,dy=p.y-start.y,dxp=p.px-start.px,dyp=p.py-start.py,h=start.handle,l=start.layer;if(!h){if(start.alt&&layer.type==="image")api.updateLayer(layer.id,{fit:"cover",cropX:(l as ImageLayer).cropX+dxp,cropY:(l as ImageLayer).cropY+dyp});else api.updateLayer(layer.id,{x:l.x+dx,y:l.y+dy});return}let w=l.w,hg=l.h;if(h.includes("e"))w=l.w+dx;if(h.includes("w"))w=l.w-dx;if(h.includes("s"))hg=l.h+dy;if(h.includes("n"))hg=l.h-dy;w=Math.max(1,Math.min(160,w));hg=Math.max(1,Math.min(160,hg));if(start.alt){const patch:Partial<Layer>={w,h:hg};if(layer.type==="image")Object.assign(patch,{fit:"cover",imageWidth:Math.max((l as ImageLayer).imageWidth,w),imageHeight:Math.max((l as ImageLayer).imageHeight,hg)});api.updateLayer(layer.id,patch);return}const patch:Partial<Layer>={w,h:hg};if(layer.type==="text"){const ratio=(h==="e"||h==="w")?w/l.w:(h==="n"||h==="s")?hg/l.h:Math.abs(w/l.w-1)>Math.abs(hg/l.h-1)?w/l.w:hg/l.h;Object.assign(patch,{fontSize:Math.max(8,(l as TextLayer).fontSize*ratio)})}else{const im=l as ImageLayer;Object.assign(patch,{imageWidth:im.imageWidth*w/l.w,imageHeight:im.imageHeight*hg/l.h,cropX:im.cropX*w/l.w,cropY:im.cropY*hg/l.h})}api.updateLayer(layer.id,patch)};const up=()=>setStart(null);const style={left:`${layer.x}%`,top:`${layer.y}%`,width:`${layer.w}%`,height:`${layer.h}%`,opacity:layer.opacity/100,"--textAnimSpeed":`${layer.type==="text"?layer.textAnimationSpeed:1.15}s`,"--letterDelay":`${layer.type==="text"?layer.textLetterDelay:.055}s`,"--shimmerSpeed":`${layer.type==="text"?layer.textShimmerSpeed:2.2}s`,"--burstSpeed":`${layer.type==="image"?layer.burstSpeed:.82}s`,"--layerAnimSpeed":`${layer.type==="image"?layer.imageAnimationSpeed:1.4}s`} as CSSProperties;return <div className={`layerBox ${selected?"selected":""} ${layer.locked?"locked":""} ${layer.type==="image"&&layer.fit==="cover"?"imageCropped":""} ${layer.type==="image"?`${layer.imageAnimation} ${layer.burstEffect}`:""}`} style={style} onPointerDown={e=>down(e)} onPointerMove={move} onPointerUp={up} onDoubleClick={e=>{e.stopPropagation();if(layer.type==="text"&&!layer.locked)setEditing(true)}}><div className="layerClip">{layer.type==="text"?<TextContent layer={layer}/>:<ImageContent layer={layer}/>}</div>{handles.map(h=><div key={h} className={`handle ${h}`} data-handle={h} onPointerDown={e=>down(e,h)} onPointerMove={move} onPointerUp={up}/>)}{editing&&layer.type==="text"&&<textarea autoFocus className="textEdit" value={layer.text} onPointerDown={e=>e.stopPropagation()} onChange={e=>api.updateLayer(layer.id,{text:e.target.value,name:e.target.value})} onBlur={()=>setEditing(false)} onKeyDown={e=>{if(e.key==="Escape"||(e.key==="Enter"&&(e.ctrlKey||e.metaKey)))setEditing(false)}}/>}</div>}
+function TextContent({layer}:{layer:TextLayer}){const animated=!['none','breatheText'].includes(layer.textAnimation);let i=0;return <div className={`layerText ${layer.effect} ${layer.textAnimation} ${layer.textShimmer?"textShimmer":""}`} style={{fontSize:layer.fontSize,WebkitTextStroke:`${layer.stroke}px black`,"--textColor":layer.color,"--gradient1":layer.gradient1,"--gradient2":layer.gradient2,"--gradientAngle":`${layer.gradientAngle}deg`} as CSSProperties}>{animated?layer.text.split("\n").map((line,n)=><span className="flowLine" key={n}>{Array.from(line).map(ch=><span className="flowChar" style={{"--i":i++} as CSSProperties} key={i}>{ch===" "?"\u00a0":ch}</span>)}</span>):layer.text}</div>}
+function ImageContent({layer}:{layer:ImageLayer}){const shadows:string[]=[];for(let d=1;d<=Math.min(10,Math.ceil(layer.outline/3));d++){const n=Math.max(1,Math.round(layer.outline*d/Math.min(10,Math.ceil(layer.outline/3))));shadows.push(`drop-shadow(${n}px 0 0 ${layer.outlineColor})`,`drop-shadow(${-n}px 0 0 ${layer.outlineColor})`,`drop-shadow(0 ${n}px 0 ${layer.outlineColor})`,`drop-shw×žõ¶‰žËkºwµç\‘[^JJ_K˜œ™X]U^Ø[š[X][ÛŽ˜œ™X]U^˜\ŠK]^[š[TÜYY
+HX\ÙKZ[‹[Ý][™š[š]_K^Ú[[Y\Ž˜Y\žØÛÛ[ˆˆŽÜÜÚ][ÛŽ˜XœÛÛ]NÝÜ‹LN	NØ›ÝÛN‹LN	NÝÚY‰NÛY‹MMINØ˜XÚÙÜ›Ý[™›[™X\‹YÜ˜YY[
+LYË˜[œÜ\™[™Ø˜JMKMKMKŽMJK˜[œÜ\™[
+NÛZ^X›[™[[ÙNœØÜ™Y[ŽÝ˜[œÙ›Ü›NœÚÙ]Ö
+LNYÊNØ[š[X][ÛŽ^Ú[[Y\ˆ‹ŒœÈX\ÙKZ[‹[Ý][™š[š]_Kš[™^ÜÜÚ][ÛŽ˜XœÛÛ]NÝÚYŒŒœÚZYÚŒŒœØ˜XÚÙÜ›Ý[™›[™X\‹YÜ˜YY[
+NYËÌŒXÍ™‹Ì™Y™ŠNØ›Ü™\ŽŒÜÛÛYÙ™™ŽØ›Ü™\‹\˜Y]\ÎŽNN\Ø›Þ\ÚYÝÎŒLœ™Ø˜JŠKM™Ø˜JMÌMKŒÍJNÙ\Ü^N››Û™NÞ‹Z[™^ŒŒK›^Y\›ÞœÙ[XÝYš[™^Ù\Ü^N˜›ØÚßKš[™K›ÞÛY‹LMÝÜ‹LMØÝ\œÛÜŽ›ÜÙK\™\Ú^™_Kš[™K›žÛYL	NÝÜ‹LMÝ˜[œÙ›Ü›N˜[œÛ]V
+ML	JNØÝ\œÛÜŽ›œË\™\Ú^™_Kš[™K›™^ÜšYÚ‹LMÝÜ‹LMØÝ\œÛÜŽ›™\ÝË\™\Ú^™_Kš[™K™^ÜšYÚ‹LMÝÜL	NÝ˜[œÙ›Ü›N˜[œÛ]VJML	JNØÝ\œÛÜŽ™]Ë\™\Ú^™_Kš[™KœÙ^ÜšYÚ‹LMØ›ÝÛN‹LMØÝ\œÛÜŽ›ÜÙK\™\Ú^™_Kš[™KœÞÛYL	NØ›ÝÛN‹LMÝ˜[œÙ›Ü›N˜[œÛ]V
+ML	JNØÝ\œÛÜŽ›œË\™\Ú^™_Kš[™KœÝÞÛY‹LMØ›ÝÛN‹LMØÝ\œÛÜŽ›™\ÝË\™\Ú^™_Kš[™KÞÛY‹LMÝÜL	NÝ˜[œÙ›Ü›N˜[œÛ]VJML	JNØÝ\œÛÜŽ™]Ë\™\Ú^™_K^Y]ÜÜÚ][ÛŽ˜XœÛÛ]NÚ[œÙ]ŒÞ‹Z[™^ŒŒØ›Ü™\ŽŒÜÛÛYÌXY™ŽØ˜XÚÙÜ›Ý[™œ™Ø˜JŽ
+NØÛÛÜŽˆÙ™™ŽØ›Ü™\‹\˜Y]\ÎŒLœÜY[™ÎŒLÜ™\Ú^™N››Û™NÙ›ÛY˜[Z[N‰ÓXÚÚY\ÝÝ^IËÝ\œÚ]™NÝ^X[YÛŽ˜Ù[\ŽÛ[™KZZYÚŒNÜÚ[\‹Y]™[Î˜]]ßHÙÝZYPÙ[\‹ÙÝZYTØY™KÜÛ˜\ÝZY^ÜÜÚ][ÛŽ˜XœÛÛ]NÚ[œÙ]ŒÜÚ[\‹Y]™[Î››Û™NÞ‹Z[™^ŽHÙÝZYPÙ[\žÛÜXÚ]N‹ŒNØ˜XÚÙÜ›Ý[™›[™X\‹YÜ˜YY[
+ÈšYÚ˜[œÜ\™[Ø[ÊL	HH\
+K™Ø˜JMKMKMKÊHØ[ÊL	HH\
+K™Ø˜JMKMKMKÊHØ[ÊL	H
+È\
+K˜[œÜ\™[Ø[ÊL	H
+È\
+JK[™X\‹YÜ˜YY[
+È›ÝÛK˜[œÜ\™[Ø[ÊL	HH\
+K™Ø˜JMKMKMKÊHØ[ÊL	HH\
+K™Ø˜JMKMKMKÊHØ[ÊL	H
+È\
+K˜[œÜ\™[Ø[ÊL	H
+È\
+J_HÙÝZYTØY™^Ú[œÙ]‹	H‹ŒINØ›Ü™\Ž\ÚY™Ø˜JMKMKMKŒÊ_KœÛYPØ\™Ø˜XÚÙÜ›Ý[™œ™Ø˜JÌ‹Ì‹ÎŽN
+NØ›Ü™\ŽŒ\ÛÛY™Ø˜JMKMKMKŒLŠNØ›Ü™\‹\˜Y]\ÎŒNÜY[™ÎŒLœÛX\™Ú[‹X›ÝÛNŒMØ›Þ\ÚYÝÎŒNÍ™Ø˜JŒŒŠ_KœÛYPØ\™˜XÝ]™^Ø›Ü™\‹XÛÛÜŽœ™Ø˜JMÌMKŽLŠNØ›Þ\ÚYÝÎŒœ™Ø˜JMÌMKŒN
+KÌ™Ø˜JMÌMKŒLŠKNœ™Ø˜JŒÍ
+_KœÛYUÜÙ\Ü^N™›^Ø[YÛ‹Z][\Î˜Ù[\ŽÙØ\ŽÛX\™Ú[‹X›ÝÛNŽ\K™˜YÔÛY^ÝÚYŒÌœÚZYÚŒÌœØ›Ü™\‹\˜Y]\ÎŒLØ˜XÚÙÜ›Ý[™ˆÌLLNÙ\Ü^N™›^Ø[YÛ‹Z][\Î˜Ù[\ŽÚ\ÝYžKXÛÛ[˜Ù[\ŽØÝ\œÛÜŽ™Ü˜XŽÙ›^››Û™_KœÛYS˜[YR[œ]Ù›Û]ÙZYÚŽLK[XžÝÚYŒL	NÚZYÚŒLÛØš™XÝYš]˜ÛÛZ[ŽØ˜XÚÙÜ›Ý[™ˆÌLLNØ›Ü™\ŽŒ\ÛÛY™Ø˜JMKMKMKŒ
+NØ›Ü™\‹\˜Y]\ÎŒMÛX\™Ú[ŽŽKœÛYSZ[šUÛÛ˜\žÙ\Ü^N™ÜšYÙÜšY][\]KXÛÛ[[œÎŒYœˆYœŽÙØ\ÜÛX\™Ú[ŽŽKœÛYSZ[šUÛÛ˜\ˆ]ÛžÚZYÚŒÍœÙ›Û\Ú^™NŒLœÜY[™ÎœÜK›^Y\“\ÝÙ\Ü^N™›^Ù›^Y\™XÝ[ÛŽ˜ÛÛ[[ŽÙØ\œÛX\™Ú[‹]ÜŽK›^Y\’][^Ù\Ü^N™ÜšYÙÜšY][\]KXÛÛ[[œÎŒŽYœˆŽØ[YÛ‹Z][\Î˜Ù[\ŽÙØ\ŽÜY[™ÎŽØ›Ü™\‹\˜Y]\ÎŒLÜØ˜XÚÙÜ›Ý[™œ™Ø˜JMKMKMKŒŠNØ›Ü™\ŽŒ\ÛÛY™Ø˜JMKMKMKŒ
+NØÝ\œÛÜŽœÚ[\ŸK›^Y\’][K˜XÝ]™^Ø›Ü™\‹XÛÛÜŽœ™Ø˜JMÌMKŽJNØ˜XÚÙÜ›Ý[™œ™Ø˜JMÌMKŒLÊNØ›Þ\ÚYÝÎŒœ™Ø˜JMÌMKŒMJ_K›^Y\‘˜YÞØÝ\œÛÜŽ™Ü˜XŽÛÜXÚ]N‹ÎÙ›Û]ÙZYÚŽLÝ^X[YÛŽ˜Ù[\ŸK›^Y\•]^Ù›Û\Ú^™NŒLœÙ›Û]ÙZYÚŽÛÝ™\™›ÝÎšY[ŽÝ^[Ý™\™›ÝÎ™[\Ú\ÎÝÚ]K\ÜXÙN››ÝÜ˜\K›^Y\•\^Ý^X[YÛŽ˜Ù[\ŸK˜XÝ]™S^Y\ÛÛ›ÛÞÙÜšYXÛÛ[[ŽŒKËL_K˜ÛÛ\XÝ^Y]ÜžÛZ[‹ZZYÚœÛX^ZZYÚŒMÜ™\Ú^™N™\XØ[Û[™KZZYÚŒKŒÍNÜY[™ÎŒLLœK˜ÛÛÜ‘›ÜÝÛ•Ü˜\ÜÜÚ][ÛŽœ™[]]™NÛX\™Ú[ŽŽLœK˜ÛÛÜ‘›ÜÝÛžÝÚYŒL	NÙ\Ü^N™›^Ø[YÛ‹Z][\Î˜Ù[\ŽÚ\ÝYžKXÛÛ[œÜXÙKX™]ÙY[ŽÜY[™ÎŒLLœØ›Ü™\ŽŒ\ÛÛY™Ø˜JMKMKMKŒM
+HZ[\Ü[Ø˜XÚÙÜ›Ý[™œ™Ø˜JMKMKMKŒŠHZ[\Ü[K˜ÛÛÜÚÚXÙ^Ù\Ü^N™›^Ø[YÛ‹Z][\Î˜Ù[\ŽÙØ\ŒLK˜ÛÛÜ‘›ÜÝÛ”™]šY]ÞÙ\Ü^N˜›ØÚÎÝÚYŒœÚZYÚŒœØ›Ü™\‹\˜Y]\ÎŽØ›Ü™\ŽŒœÛÛY™Ø˜JMKMKMKŒÊ_K˜ÛÛÜ‘›ÜÝÛ”[™[ÜÜÚ][ÛŽ˜XœÛÛ]NÛYŒÜšYÚŒÝÜ˜Ø[ÊL	H
+È
+NÞ‹Z[™^Ù\Ü^N››Û™NØ˜XÚÙÜ›Ý[™ˆÌNNYNØ›Ü™\‹\˜Y]\ÎŒLœK˜ÛÛÜ‘›ÜÝÛ•Ü˜\›Ü[ˆ˜ÛÛÜ‘›ÜÝÛ”[™[Ù\Ü^N˜›ØÚßK˜ÛÛÜ”[™[Ø˜XÚÙÜ›Ý[™ˆÌNNYNØ›Ü™\ŽŒ\ÛÛY™Ø˜JMKMKMKŒN
+NØ›Ü™\‹\˜Y]\ÎŒLœÜY[™ÎŽØ›Þ\ÚYÝÎŒN™Ø˜JMJ_K˜ÛÛÜ”[™[]^Ù›Û\Ú^™NŒLÝ^]˜[œÙ›Ü›N\\˜Ø\ÙNÛ]\‹\ÜXÚ[™Î‹ŽÙ›Û]ÙZYÚŽLØÛÛÜŽœ™Ø˜JMKMKMKŒŠ_K˜ÛÛÜ‘ÜšYÙ\Ü^N™ÜšYÙÜšY][\]KXÛÛ[[œÎœ™\X]
+ËYœŠNÙØ\œÛX\™Ú[ŽœK™Y]Ü‹\Ú[˜ÛÛÜ”ÝØ]ÚÚZYÚŒŽÛZ[‹ZZYÚŒŽÜY[™ÎŒØ›Ü™\‹\˜Y]\ÎŽØ›Ü™\ŽŒœÛÛY™Ø˜JMKMKMKŒŽ
+_K˜Ý\ÝÛPÛÛÜ”›ÝÞÙ\Ü^N™ÜšYÙÜšY][\]KXÛÛ[[œÎŒYœˆLœÙØ\ŽØ[YÛ‹Z][\Î˜Ù[\ŸK˜Ý\ÝÛPÛÛÜ”›ÝÈ[œ]Ý\OXÛÛÜ—^ÝÚYLœÚZYÚŒÍœÜY[™ÎŒÜHØ›ÝÛPYÛYPžÝÚYŒL	NÛX\™Ú[ŽŒLœÜY[™ÎŒLœK™Y]Ü‹[›ÝXÙ^ÜÜÚ][ÛŽ™š^YÜšYÚŒNØ›ÝÛNŒNÞ‹Z[™^ŒÌØ˜XÚÙÜ›Ý[™ˆÌNNYNØ›Ü™\ŽŒ\ÛÛYÌXY™ŽØ›Ü™\‹\˜Y]\ÎŒLœÜY[™ÎŒLK›Ý™\›^KYY][™ÈÛY[™[›Ý™\›^KYY][™ÈÝÜÛÛ˜\žÙ\Ü^N››Û™_K›Ý™\›^KYY][™Ë™Y]Ü‹\Ú[Ù\Ü^N˜›ØÚÎØ˜XÚÙÜ›Ý[™˜[œÜ\™[K›Ý™\›^KYY][™È™Y]Ü‹]ÛÜšÜÜXÙ^Ù\Ü^N˜›ØÚÎÚZYÚŒLšØ˜XÚÙÜ›Ý[™˜[œÜ\™[K›Ý™\›^KYY][™ÈØØ[˜\Ð\™X^ÝÚYŒLÎÚZYÚŒLšÜY[™ÎŒØ˜XÚÙÜ›Ý[™˜[œÜ\™[K›Ý™\›^KYY][™ÈÜÝYÙUšY]ÜÜÝÚYŒLÎÚZYÚŒLšØ\ÜXÝ\˜][Î˜]]ÎØ›Ü™\‹\˜Y]\ÎŒØ›Þ\ÚYÝÎ››Û™_K›Ý™\›^KYY][™È›^Y\›ÞÛÝ][™N››Û™HZ[\Ü[Ø›Þ\ÚYÝÎ››Û™HZ[\Ü[K›Ý™\›^KYY][™Èš[™K›Ý™\›^KYY][™ÈÙÝZYPÙ[\‹›Ý™\›^KYY][™ÈÙÝZYTØY™^Ù\Ü^N››Û™HZ[\Ü[BÙ^Yœ˜[Y\È˜Z[˜›ÝÓ[Ý™^ÝÞØ˜XÚÙÜ›Ý[™\ÜÚ][ÛŽŒÌ	HL	__PÙ^Yœ˜[Y\È]\›Ü˜Q›ÝÞÍL	^Ø˜XÚÙÜ›Ý[™\ÜÚ][ÛŽŒL	HL	__PÙ^Yœ˜[Y\È]\•Ø]™^ÍL	^Ý˜[œÙ›Ü›N˜[œÛ]VJLN
+H›Ý]JKYYÊ__PÙ^Yœ˜[Y\È]\›Ý[˜Ù^ÍI^Ý˜[œÙ›Ü›N˜[œÛ]VJLŒœ
+HØØ[VJKŒ
+_MÌ	^Ý˜[œÙ›Ü›N˜[œÛ]VJ\
+HØØ[VJŽM
+__PÙ^Yœ˜[Y\È]\‘Û]ÚÌI^Ý˜[œÙ›Ü›N˜[œÛ]JLÜœ
+NÙš[\ŽšYK\›Ý]JLYÊ_ML	^Ý˜[œÙ›Ü›N˜[œÛ]JÜLœ
+NÙš[\ŽšYK\›Ý]JLLŒYÊ__PÙ^Yœ˜[Y\È]\‘›XÚÙ\žÎ	^ÛÜXÚ]N‹ŒÌŽÙš[\Ž˜œšYÚ™\ÜÊŠ_LL	^ÛÜXÚ]NŒ_M‰^ÛÜXÚ]N‹__PÙ^Yœ˜[Y\È\]Üš]\“]\žÝÞÛÜXÚ]NŒ__PÙ^Yœ˜[Y\Èœ™X]U^ÍL	^Ý˜[œÙ›Ü›NœØØ[JKŒMJ__PÙ^Yœ˜[Y\È^Ú[[Y\žÌ	KN	^ÛY‹MŒ	NÛÜXÚ]NŒLŽ	^ÛÜXÚ]NŒ_MŒ‰^ÛYŒLN	NÛÜXÚ]NŒ_MÍIKL	^ÛYŒLN	NÛÜXÚ]NŒ_BYYXJX^]ÚYŽL
+^Ë™Y]Ü‹\Ú[ÙÜšY][\]KXÛÛ[[œÎŒYœŽÙÜšY][\]K\›ÝÜÎšMšK™Y]Ü‹\Ú[ÛY[™[ÚZYÚšØ›Ü™\‹\šYÚŒØ›Ü™\‹X›ÝÛNŒœÛÛY˜\ŠKX›Ü™\Š_K™Y]Ü‹]ÛÜšÜÜXÙ^ÚZYÚMšK™Y]Ü‹\Ú[ÜÝYÙUšY]ÜÜÝÚYŒL	__B

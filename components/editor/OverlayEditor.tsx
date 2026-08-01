@@ -20,6 +20,8 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   const replace = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [upgrade,setUpgrade]=useState(false);
+  const [overlayOnly,setOverlayOnly]=useState(false);
+  const rotation=useRef<number|null>(null);
   const markSaving = useCallback(() => api.markSaving(), [api]);
   const markSaved = useCallback(() => api.markSaved(), [api]);
   const markSaveError = useCallback(() => api.markSaveError(), [api]);
@@ -99,19 +101,19 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     }
   };
 
-  return <div className="editor-shell">
-    <EditorSidebar state={state} slide={slide} layer={layer} api={limitedApi} onReplace={() => pickImage(true)} />
+  const stopRotation=()=>{if(rotation.current!==null)window.clearInterval(rotation.current);rotation.current=null};
+  const startRotation=()=>{stopRotation();api.selectSlide(state.project.slides[0].id);let index=0;rotation.current=window.setInterval(()=>{index=(index+1)%state.project.slides.length;api.selectSlide(state.project.slides[index].id)},Math.max(1,state.project.settings.speed)*1000)};
+  const publish=async()=>{try{await saveCoordinator.saveNow(state.project);const response=await fetch("/api/overlays/publish",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId})});const data=await response.json();if(!response.ok)throw new Error(data.message);const url=new URL(data.url,location.origin).toString();await navigator.clipboard.writeText(url);setNotice("Overlay URL copied ✓ Updated version included in link.")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
+
+  return <div className={`editor-shell ${overlayOnly?"overlay-editing":""}`}>
+    <EditorSidebar state={state} api={limitedApi} onReplace={() => pickImage(true)} onSave={saveNow} onNew={resetProject} onImport={()=>projectInput.current?.click()} onExport={exportProject} onStart={startRotation} onStop={stopRotation} onPublish={publish}/>
     <section className="editor-workspace">
       <EditorToolbar
         api={limitedApi}
         layer={layer}
-        canUndo={state.past.length > 0}
-        canRedo={state.future.length > 0}
+        settings={state.project.settings}
         onAddImage={() => pickImage(false)}
-        onExport={exportProject}
-        onImport={() => projectInput.current?.click()}
-        onReset={resetProject}
-        onSave={saveNow}
+        onOverlayOnly={()=>setOverlayOnly(value=>!value)}
       />
       {notice && <div className="editor-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
       <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} />

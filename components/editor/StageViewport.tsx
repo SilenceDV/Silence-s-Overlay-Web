@@ -1,1 +1,1 @@
-import type { ReactNode } from "react";export function StageViewport({children,preview}:{children:ReactNode;preview:string}){return <div className={`stage-viewport preview-${preview}`}><div className="stage">{children}</div></div>}
+import type {ReactNode} from "react";export function StageViewport({children}:{children:ReactNode;preview:string}){return <div id="stageViewport"><div id="stage" className="stage">{children}</div></div>}
