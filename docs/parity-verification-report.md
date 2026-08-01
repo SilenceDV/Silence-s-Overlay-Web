@@ -2,65 +2,57 @@
 
 ## Result
 
-Exact parity has **not yet been achieved**. This branch restores the legacy editor structure and a large portion of its controls/data behavior, but direct legacy-versus-modern browser verification could not be performed because the required browser-control runtime was unavailable in this session. No screenshots are included, so this branch must not be represented as acceptance-complete.
+Exact parity has **not yet been achieved**, so PR #17 must remain a draft. Direct browser comparison is now available, and the previously listed implementation gaps have been addressed, but authenticated Supabase runtime verification is blocked by missing local project configuration/session and the matching-viewport pixel comparison still reports a meaningful residual difference.
 
-## Restored features
+## Matching-viewport visual evidence
 
-- 430px legacy left panel, 58px grouped toolbar, 1920×1080/16:9 stage presentation, desktop and 900px responsive split.
-- Legacy Preset and Overlay card layout, labels, button order, theme choices, preview buttons, rotation controls, help and shortcut copy.
-- Nested slide cards with names, thumbnails, mini toolbars, entrance-animation list, nested reversed layer lists, drag handles and inline active-layer controls.
-- Legacy text styles: solid, custom gradient, rainbow, aurora, fire, ice and gold; gradient angle; palette dropdowns; animation/speed/delay; shimmer; size; outline; opacity.
-- Legacy image animation and burst selectors, speeds, outline/glow palettes, opacity, crop zoom and Reset Crop semantics.
-- Eight canvas handles; normal text/image resize; Alt handle crop-resize; Alt image-body crop movement; double-click canvas text editing.
-- Legacy keyboard values and commands: Ctrl/Cmd+Z, Ctrl/Cmd+Y, Ctrl/Cmd+D, delete/backspace, .35% arrow nudge and 2% Shift+Arrow nudge.
-- Plain UUID project creation via `crypto.randomUUID()`.
-- Loss-preserving legacy normalization for text/image animation, shimmer, burst, particle, crop/inner dimensions, background-box fields, top-level legacy slide data and unknown properties.
-- Server enforcement for legacy premium animation fields on create, save, duplicate and publish.
-- Hosted overlay rendering through the same React canvas renderer as the editor.
+Both editors were loaded in the same Chromium browser at an explicit **1440×900 CSS viewport** in their default selected-text state:
 
-## Restored visual details
+- [Legacy editor](parity-screenshots/legacy-editor-1440x900.png)
+- [Modern React editor](parity-screenshots/modern-editor-1440x900.png)
+- [3× contrast pixel difference](parity-screenshots/editor-pixel-diff-1440x900.png)
 
-- Legacy black/blue/orange panel gradients, translucent section cards, borders, radii, shadows, custom scrollbar, title and Pro Studio badge.
-- Exact toolbar labels and icon-button grouping, selected/locked outlines, handles, preview checker/black/green/clear backgrounds, guide geometry, slide/layer card styling and color palette layout.
-- Luckiest Guy stage typography and Inter UI typography loaded from the same font source.
-- Legacy entrance, per-letter text, image motion, shimmer and burst CSS/keyframes restored for the exposed controls.
+ImageMagick-style absolute RGB comparison (Pillow `ImageChops.difference`) after aligning viewport and control typography:
 
-## Restored interactions
+- mean absolute channel difference: **4.0852 / 255**
+- pixels with any channel difference greater than 8: **8.9810%**
+- channel RMSE: **20.0272**
 
-- Cloud manual save/autosave, import/export, new cloud project, hosted publish/copy, overlay-only toggle and rotation start/stop.
-- Slide/layer selection, naming, duplication, deletion and drag reorder paths.
-- Layer add, z-order, duplicate, lock, delete, X/Y centering, undo and redo.
-- Image upload/replace and direct text editing.
-- Server-side ownership, optimistic concurrency, one-slide entitlement and premium-animation entitlement paths retained.
+The initial comparison was 14.8335% changed pixels. Correcting the inherited React form-control font size brought the panel/card geometry into direct alignment. The remaining difference is concentrated in text/control rasterization and the selected canvas text layer/viewport edge. Because exact parity is the acceptance rule, this remains a blocker rather than being dismissed as cosmetic.
+
+## Resolved mismatches from the previous report
+
+1. Added same-browser, same-viewport legacy/React screenshots and a pixel-difference artifact.
+2. Wired exact legacy drag guides: X 0/5/10/25/50/75/90/95/100, Y 0/6.5/10/25/50/75/90/93.5/100, 0.8 threshold, Shift bypass, and 3px cyan guide lines.
+3. Added one checkpoint on the first pointer/direct-edit mutation and live mutations thereafter, avoiding a history record for every pointer event.
+4. Restored the cloud preset selector plus in-editor selection, rename/autosave, manual save, create, delete-and-replace, and current-project continuity flows.
+5. Non-current slide T+ and image+ now select/add to the requested slide in one action.
+6. Slide duplication now deep-clones fresh slide/layer IDs, appends ` Duplicate`, inserts immediately after the source, selects the copy and its first layer; final-slide deletion uses the legacy alert.
+7. Rotation now uses the legacy timeout sequence, fades out, swaps after exactly 180ms, fades in, and schedules the next slide after the configured interval.
+8. Added the legacy particle span renderer, deterministic counts/positions/sizes/delays/durations/colors, and exact particle class mapping.
+9. Added all six exact global-theme image/text drop-shadow filters.
+10. Added the fixed 1920×1080 logical stage with legacy scale/centering math.
+11. Restored blank preset defaults, default text animation speed, and version-7 legacy export envelope/field names/filename sanitization.
+12. Added exact final-layer/final-slide alert strings, unclamped legacy arrow nudges, fresh duplicate IDs, and copied-layer selection.
+13. Added a development-only, explicitly environment-gated parity harness. Production authentication remains unchanged.
 
 ## Automated verification
 
-- `npm ci`: passed using a repository-local npm cache after the user-level cache was sandbox-denied.
-- `npm run typecheck`: passed.
-- `npm run lint`: passed with three warnings and no errors.
-- `npm test`: 8 files, 35 tests passed.
-- `npm run build`: passed; all 26 routes compiled/generated.
-- `git diff --check`: passed.
+- TypeScript typecheck: passed.
+- Tests: **8 files, 38 tests passed**.
+- ESLint: passed with 0 errors and 2 advisories (`no-page-custom-font`, `no-img-element`).
+- Production build: passed; all 26 routes compiled/generated.
 
-## Exact remaining mismatches / unverified items
+## Authenticated runtime-test status
 
-These items mean exact parity is not complete:
+Not completed. This checkout has only `.env.example`; it has no configured `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, service-role key, or authenticated browser session. The available GitHub Pages deployment is the archived static editor, not the authenticated Next/Supabase application. The local `gh` executable also reports that its stored token is invalid despite the earlier external authentication status report.
 
-1. No matching-viewport legacy and modern screenshots or pixel-difference artifacts were produced because browser control was unavailable.
-2. Hover, pressed, active, disabled, modal, empty, direct-edit, crop and animation visual states have not been inspected side-by-side at runtime.
-3. Snap-to-guide behavior and visible snap lines are not yet wired into the React drag path; Shift bypass therefore remains unverified.
-4. Pointer updates currently create React history entries more frequently than the legacy first-movement snapshot boundary.
-5. Escape closes direct text editing but does not restore the pre-edit text value; the legacy implementation also mutates live, but exact undo/cancel timing remains unverified.
-6. The legacy in-editor IndexedDB preset selector/delete workflow is represented by cloud project/dashboard navigation. Backend persistence requires an internal change, but exact user-facing continuity still needs direct review.
-7. Add Text/Add Image inside a non-current slide requires a second click after selection; legacy performs selection and addition in one click.
-8. Slide duplicate selection/restart timing and slide-delete alert wording are not yet exact.
-9. Start Rotation uses a React interval and does not yet reproduce the legacy 180ms opacity swap exactly.
-10. Legacy particle data is preserved and entitlement-checked, but the final React renderer does not yet draw particle spans.
-11. Legacy global theme filters are selectable and persisted, but exact per-theme image/text drop-shadow rendering remains incomplete.
-12. Free/Pro upgrade modal presentation is not positioned/styled as an approved legacy element because it is a required subscription exception; it still needs visual review for minimal intrusion.
-13. Cloud project load/delete actions remain on the dashboard rather than matching the legacy preset controls in-place.
-14. Direct manual verification of save/reload, hosted publishing, entitlement expiry and authenticated ownership was not possible without configured Supabase/Stripe runtime credentials.
+Therefore the following required authenticated checks remain unverified: project creation/loading, autosave, manual save, refresh persistence, import/export persistence, hosted publishing/rendering, free-plan restrictions, and Pro animation restrictions.
 
-## Required follow-up gate
+## Remaining blockers
 
-Do not mark this work acceptance-complete until every item above is resolved and the complete matrix in `docs/legacy-parity-checklist.md` has matching legacy/modern screenshots and recorded behavior outcomes.
+1. Reduce the 1440×900 residual pixel difference until no meaningful visual mismatch remains, then repeat stable, hover, pressed, selected, disabled, dialog, direct-edit, crop, animation and responsive state captures.
+2. Supply/configure the intended Supabase environment and an authenticated Free and Pro test session, then complete and record the full persistence/publishing/entitlement matrix.
+3. Re-run the full browser matrix after authenticated data hydration and hosted overlay publication.
+
+Until these blockers are complete, PR #17 must remain draft and must not be described as exact parity.

@@ -1,5 +1,7 @@
 # Legacy editor parity audit
 
+> **2026-08-01 implementation update:** The tables below preserve the original baseline audit for traceability. The implementation mismatches called out there have been addressed in the branch; current evidence, numerical visual-diff results, and the two remaining acceptance blockers are recorded in [`parity-verification-report.md`](parity-verification-report.md). Exact parity is not yet claimed because the residual visual diff and authenticated Supabase matrix remain open.
+
 Source of truth: `archive/Overlay4-legacy.html` (complete 2,161-line file inspected before implementation). Modern baseline: `app/editor/page.tsx`, every file in `components/editor`, `hooks`, `lib/editor`, `styles`, editor types and project API routes at commit `cb7f948`.
 
 Status vocabulary: **matching**, **visually different**, **behaviorally different**, **missing**, or **backend-only exception**. Any item not marked matching must be treated as a parity defect until verified directly in both implementations.

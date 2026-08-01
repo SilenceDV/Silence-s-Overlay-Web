@@ -26,3 +26,29 @@ it("marks an imported replacement as dirty so it will be autosaved", () => {
   expect(result.current.state.project.name).toBe("Imported project");
   expect(result.current.state.saveStatus).toBe("dirty");
 });
+
+it("records one history boundary for a continuous pointer edit", () => {
+  const { result } = renderHook(() => useEditorState());
+  const layerId = result.current.state.selectedLayerId!;
+  act(() => {
+    result.current.api.checkpoint();
+    result.current.api.updateLayerLive(layerId, { x: 61 });
+    result.current.api.updateLayerLive(layerId, { x: 72 });
+  });
+  expect(result.current.layer?.x).toBe(72);
+  act(() => result.current.api.undo());
+  expect(result.current.layer?.x).toBe(50);
+});
+
+it("duplicates a slide after its source with fresh IDs and selects the copy", () => {
+  const { result } = renderHook(() => useEditorState());
+  const source = result.current.slide;
+  act(() => result.current.api.duplicateSlide(source.id));
+  expect(result.current.state.project.slides).toHaveLength(2);
+  const copy = result.current.state.project.slides[1];
+  expect(copy.name).toBe("New Gift Duplicate");
+  expect(copy.id).not.toBe(source.id);
+  expect(copy.layers[0].id).not.toBe(source.layers[0].id);
+  expect(result.current.state.currentSlideId).toBe(copy.id);
+  expect(result.current.state.selectedLayerId).toBe(copy.layers[0].id);
+});

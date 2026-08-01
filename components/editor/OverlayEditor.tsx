@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { deserializeProject, serializeProject } from "@/lib/editor/serialization";
+import { deserializeProject, serializeLegacyProject } from "@/lib/editor/serialization";
 import { MAX_RAW_IMAGE_BYTES } from "@/lib/validation/projectSchemas";
 import { CanvasStage } from "./CanvasStage";
-import { EditorSidebar } from "./EditorSidebar";
+import { EditorSidebar,type ProjectSummary } from "./EditorSidebar";
 import { EditorToolbar } from "./EditorToolbar";
 
 const MAX_PROJECT_BYTES = 8_000_000;
@@ -18,9 +18,13 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   const imageInput = useRef<HTMLInputElement>(null);
   const projectInput = useRef<HTMLInputElement>(null);
   const replace = useRef(false);
+  const imageSlideId=useRef(projectId);
   const [notice, setNotice] = useState<string | null>(null);
   const [upgrade,setUpgrade]=useState(false);
   const [overlayOnly,setOverlayOnly]=useState(false);
+  const [fading,setFading]=useState(false);
+  const [projects,setProjects]=useState<ProjectSummary[]>([]);
+  const [publishedUrl,setPublishedUrl]=useState<string|null>(null);
   const rotation=useRef<number|null>(null);
   const markSaving = useCallback(() => api.markSaving(), [api]);
   const markSaved = useCallback(() => api.markSaved(), [api]);
@@ -37,10 +41,12 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialProject]);
   useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(state.saveStatus==="dirty"||state.saveStatus==="saving"){e.preventDefault();e.returnValue=""}};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn)},[state.saveStatus]);
+  useEffect(()=>{fetch("/api/projects").then(r=>r.ok?r.json():null).then(data=>setProjects(data?.projects??[])).catch(()=>setProjects([]))},[projectId]);
   const limitedApi={...api,addSlide:()=>proAccess?api.addSlide():setUpgrade(true),duplicateSlide:(id:string)=>proAccess?api.duplicateSlide(id):setUpgrade(true)};
 
-  const pickImage = (isReplace = false) => {
+  const pickImage = (isReplace = false,slideId=state.currentSlideId) => {
     replace.current = isReplace;
+    imageSlideId.current=slideId;
     imageInput.current?.click();
   };
 
@@ -59,7 +65,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     reader.onload = () => {
       const url = String(reader.result);
       if (replace.current && layer?.type === "image") api.updateLayer(layer.id, { imageUrl: url, fileName: file.name, name: file.name });
-      else api.addImage(url, file.name);
+      else api.addImage(url, file.name,imageSlideId.current);
       setNotice(null);
     };
     reader.readAsDataURL(file);
@@ -68,10 +74,11 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   const saveNow=async()=>{ await saveCoordinator.saveNow(state.project); setNotice("Project saved."); };
 
   const exportProject = () => {
-    const blob = new Blob([serializeProject(state.project)], { type: "application/json" });
+    const name=state.project.name.trim()||"Silence Overlay Preset";
+    const blob = new Blob([serializeLegacyProject(state.project)], { type: "application/json" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `${state.project.name.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "overlay"}.json`;
+    link.download = `${name.replace(/[\\/:*?"<>|]/g,"_")}.json`;
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -96,17 +103,20 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   };
 
   const resetProject = () => {
-    if (window.confirm("Start a new project? Your current local project will be replaced.")) {
+    if (window.confirm("Start a new preset? Unsaved changes in the current preset may be lost.")) {
       fetch("/api/projects", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).then(async (response) => { const created = await response.json(); if (!response.ok) throw new Error(created.message); location.href = `/editor?id=${created.id}`; }).catch((error) => setNotice(error instanceof Error ? error.message : "Project creation failed."));
     }
   };
+  const deleteProject=async()=>{if(!confirm(`Delete preset: ${state.project.name}?`))return;const response=await fetch(`/api/projects/${projectId}`,{method:"DELETE"});if(!response.ok){setNotice("Preset could not be deleted.");return}const created=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:"{}"}).then(r=>r.json());location.href=`/editor?id=${created.id}`};
 
-  const stopRotation=()=>{if(rotation.current!==null)window.clearInterval(rotation.current);rotation.current=null};
-  const startRotation=()=>{stopRotation();api.selectSlide(state.project.slides[0].id);let index=0;rotation.current=window.setInterval(()=>{index=(index+1)%state.project.slides.length;api.selectSlide(state.project.slides[index].id)},Math.max(1,state.project.settings.speed)*1000)};
-  const publish=async()=>{try{await saveCoordinator.saveNow(state.project);const response=await fetch("/api/overlays/publish",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId})});const data=await response.json();if(!response.ok)throw new Error(data.message);const url=new URL(data.url,location.origin).toString();await navigator.clipboard.writeText(url);setNotice("Overlay URL copied ✓ Updated version included in link.")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
+  const stopRotation=()=>{if(rotation.current!==null)window.clearTimeout(rotation.current);rotation.current=null;setFading(false)};
+  const startRotation=()=>{stopRotation();let index=0;api.selectSlide(state.project.slides[0].id);const schedule=()=>{rotation.current=window.setTimeout(()=>{setFading(true);window.setTimeout(()=>{index=(index+1)%state.project.slides.length;api.selectSlide(state.project.slides[index].id);setFading(false);schedule()},180)},Math.max(1,state.project.settings.speed)*1000)};schedule()};
+  const getPublishedUrl=async()=>{if(publishedUrl)return publishedUrl;await saveCoordinator.saveNow(state.project);const response=await fetch("/api/overlays/publish",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId})});const data=await response.json();if(!response.ok)throw new Error(data.message);const url=new URL(data.url,location.origin).toString();setPublishedUrl(url);return url};
+  const copyUrl=async()=>{try{const url=await getPublishedUrl();await navigator.clipboard.writeText(url);setNotice("Overlay URL copied ✓ Updated version included in link.")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
+  const testUrl=async()=>{try{const url=await getPublishedUrl();window.open(url,"_blank","noopener,noreferrer")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
 
   return <div className={`editor-shell ${overlayOnly?"overlay-editing":""}`}>
-    <EditorSidebar state={state} api={limitedApi} onReplace={() => pickImage(true)} onSave={saveNow} onNew={resetProject} onImport={()=>projectInput.current?.click()} onExport={exportProject} onStart={startRotation} onStop={stopRotation} onPublish={publish}/>
+    <EditorSidebar state={state} api={limitedApi} projects={projects} onAddImage={(slideId)=>pickImage(false,slideId)} onReplace={() => pickImage(true)} onSave={saveNow} onNew={resetProject} onLoad={(id)=>{location.href=`/editor?id=${id}`}} onDelete={deleteProject} onImport={()=>projectInput.current?.click()} onExport={exportProject} onStart={startRotation} onStop={stopRotation} onCopyUrl={copyUrl} onTestUrl={testUrl}/>
     <section className="editor-workspace">
       <EditorToolbar
         api={limitedApi}
@@ -116,7 +126,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
         onOverlayOnly={()=>setOverlayOnly(value=>!value)}
       />
       {notice && <div className="editor-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
-      <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} />
+      <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} fading={fading} />
     </section>
     {upgrade&&<div className="modal-backdrop"><section className="card upgrade-modal"><h2>Unlock unlimited slides</h2><p>Free projects support one slide. Pro unlocks unlimited slides, premium animations, and hosted Pro overlays.</p><div className="actions"><a className="button" href="/billing">Upgrade to Pro</a><button onClick={()=>setUpgrade(false)}>Not now</button></div></section></div>}
     <input ref={imageInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { readImage(event.target.files?.[0]); event.target.value = ""; }} />
