@@ -52,3 +52,10 @@ it("duplicates a slide after its source with fresh IDs and selects the copy", ()
   expect(result.current.state.currentSlideId).toBe(copy.id);
   expect(result.current.state.selectedLayerId).toBe(copy.layers[0].id);
 });
+
+it("keeps the editor API stable across project mutations",()=>{
+  const {result}=renderHook(()=>useEditorState());
+  const api=result.current.api;
+  act(()=>api.updateLayer(result.current.state.selectedLayerId!,{x:63}));
+  expect(result.current.api).toBe(api);
+});

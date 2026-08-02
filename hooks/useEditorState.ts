@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useReducer } from "react";
+import { useMemo, useReducer, useRef } from "react";
 import { defaultImage, defaultProject, defaultSlide, defaultText, createId } from "@/lib/editor/defaults";
 import { cloneProject, pushHistory, redoProject, undoProject } from "@/lib/editor/history";
 import type { EditorState, Layer, Project, Slide } from "@/types/editor";
@@ -74,6 +74,8 @@ function reducer(state: EditorState, action: EditorAction): EditorState {
 
 export function useEditorState() {
   const [state, dispatch] = useReducer(reducer, undefined, () => initialState());
+  const stateRef=useRef(state);
+  stateRef.current=state;
   const slide = state.project.slides.find((item) => item.id === state.currentSlideId) ?? state.project.slides[0];
   const layer = slide?.layers.find((item) => item.id === state.selectedLayerId) ?? null;
 
@@ -87,10 +89,10 @@ export function useEditorState() {
       redo: () => dispatch({ type: "redo" }),
       addText: () => {
         const item = defaultText();
-        mutate((project) => project.slides.find((candidate) => candidate.id === state.currentSlideId)?.layers.push(item), { selectLayerId: item.id });
+        mutate((project) => project.slides.find((candidate) => candidate.id === stateRef.current.currentSlideId)?.layers.push(item), { selectLayerId: item.id });
       },
       addTextToSlide: (slideId:string) => {const item=defaultText();mutate(project=>project.slides.find(candidate=>candidate.id===slideId)?.layers.push(item),{selectSlideId:slideId,selectLayerId:item.id})},
-      addImage: (url: string, name: string, slideId=state.currentSlideId) => {
+      addImage: (url: string, name: string, slideId=stateRef.current.currentSlideId) => {
         const item = defaultImage(url, name);
         mutate((project) => project.slides.find((candidate) => candidate.id === slideId)?.layers.push(item), {selectSlideId:slideId,selectLayerId:item.id});
       },
@@ -107,8 +109,8 @@ export function useEditorState() {
         const item = project.slides.find((candidate) => candidate.id === id);
         if (item) Object.assign(item, patch);
       }),
-      deleteLayer: (id: string) => {const existing=state.project.slides.find(candidate=>candidate.layers.some(item=>item.id===id));if(existing&&existing.layers.length<=1){window.alert("A slide needs at least one layer.");return}mutate(project=>{const owner=project.slides.find(candidate=>candidate.layers.some(item=>item.id===id));if(owner)owner.layers=owner.layers.filter(item=>item.id!==id)})},
-      duplicateLayer: (id: string) => {const sourceOwner=state.project.slides.find(candidate=>candidate.layers.some(item=>item.id===id));const source=sourceOwner?.layers.find(item=>item.id===id);if(!source||!sourceOwner)return;const copy=structuredClone(source);copy.id=createId(copy.type);copy.x+=3;copy.y+=3;mutate(project=>{const owner=project.slides.find(candidate=>candidate.id===sourceOwner.id)!;const index=owner.layers.findIndex(item=>item.id===id);owner.layers.splice(index+1,0,copy)},{selectSlideId:sourceOwner.id,selectLayerId:copy.id})},
+      deleteLayer: (id: string) => {const existing=stateRef.current.project.slides.find(candidate=>candidate.layers.some(item=>item.id===id));if(existing&&existing.layers.length<=1){window.alert("A slide needs at least one layer.");return}mutate(project=>{const owner=project.slides.find(candidate=>candidate.layers.some(item=>item.id===id));if(owner)owner.layers=owner.layers.filter(item=>item.id!==id)})},
+      duplicateLayer: (id: string) => {const sourceOwner=stateRef.current.project.slides.find(candidate=>candidate.layers.some(item=>item.id===id));const source=sourceOwner?.layers.find(item=>item.id===id);if(!source||!sourceOwner)return;const copy=structuredClone(source);copy.id=createId(copy.type);copy.x+=3;copy.y+=3;mutate(project=>{const owner=project.slides.find(candidate=>candidate.id===sourceOwner.id)!;const index=owner.layers.findIndex(item=>item.id===id);owner.layers.splice(index+1,0,copy)},{selectSlideId:sourceOwner.id,selectLayerId:copy.id})},
       moveLayer: (id: string, distance: number) => mutate((project) => {
         const owner = project.slides.find((candidate) => candidate.layers.some((item) => item.id === id));
         if (!owner) return;
@@ -119,7 +121,7 @@ export function useEditorState() {
       deleteSlide: (id: string) => mutate((project) => {
         if (project.slides.length > 1) project.slides = project.slides.filter((item) => item.id !== id);
       }),
-      duplicateSlide: (id: string) => {const source=state.project.slides.find(item=>item.id===id);if(!source)return;const copy=structuredClone(source);copy.id=createId("slide");copy.name=(copy.name||"Slide")+" Duplicate";copy.layers.forEach(item=>{item.id=createId(item.type)});mutate(project=>{const index=project.slides.findIndex(item=>item.id===id);project.slides.splice(index+1,0,copy)},{selectSlideId:copy.id,selectLayerId:copy.layers[0]?.id??null})},
+      duplicateSlide: (id: string) => {const source=stateRef.current.project.slides.find(item=>item.id===id);if(!source)return;const copy=structuredClone(source);copy.id=createId("slide");copy.name=(copy.name||"Slide")+" Duplicate";copy.layers.forEach(item=>{item.id=createId(item.type)});mutate(project=>{const index=project.slides.findIndex(item=>item.id===id);project.slides.splice(index+1,0,copy)},{selectSlideId:copy.id,selectLayerId:copy.layers[0]?.id??null})},
       reorderSlides: (from: number, to: number) => mutate((project) => {
         if (from < 0 || to < 0 || from >= project.slides.length || to >= project.slides.length || from === to) return;
         const [item] = project.slides.splice(from, 1);
@@ -142,7 +144,7 @@ export function useEditorState() {
       markSaved: () => dispatch({ type: "save-status", status: "saved" }),
       markSaveError: () => dispatch({ type: "save-status", status: "error" }),
     };
-  }, [state.currentSlideId,state.project.slides]);
+  }, []);
 
   return { state, slide, layer, api };
 }

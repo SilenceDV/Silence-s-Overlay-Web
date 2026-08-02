@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { useEffect, useRef } from "react";
 
 export function StageViewport({ children }: { children: ReactNode; preview: string }) {

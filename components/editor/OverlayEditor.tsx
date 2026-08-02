@@ -25,7 +25,8 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   const [fading,setFading]=useState(false);
   const [projects,setProjects]=useState<ProjectSummary[]>([]);
   const [publishedUrl,setPublishedUrl]=useState<string|null>(null);
-  const rotation=useRef<number|null>(null);
+  const [interacting,setInteracting]=useState(false);
+  const rotation=useRef<number|null>(null),rotationSwap=useRef<number|null>(null);
   const markSaving = useCallback(() => api.markSaving(), [api]);
   const markSaved = useCallback(() => api.markSaved(), [api]);
   const markSaveError = useCallback(() => api.markSaveError(), [api]);
@@ -35,13 +36,14 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   }, [markSaveError]);
 
   useKeyboardShortcuts(api, state.selectedLayerId);
-  const saveCoordinator=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaving, markSaved, showSaveError);
+  const saveCoordinator=useAutosave(state.project, state.saveStatus === "dirty", projectId, version, markSaving, markSaved, showSaveError, interacting);
 
   useEffect(() => { api.replaceProject(initialProject); /* initial database hydration only */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialProject]);
   useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(state.saveStatus==="dirty"||state.saveStatus==="saving"){e.preventDefault();e.returnValue=""}};window.addEventListener("beforeunload",warn);return()=>window.removeEventListener("beforeunload",warn)},[state.saveStatus]);
   useEffect(()=>{fetch("/api/projects").then(r=>r.ok?r.json():null).then(data=>setProjects(data?.projects??[])).catch(()=>setProjects([]))},[projectId]);
+  useEffect(()=>()=>{if(rotation.current!==null)window.clearTimeout(rotation.current);if(rotationSwap.current!==null)window.clearTimeout(rotationSwap.current)},[]);
   const limitedApi={...api,addSlide:()=>proAccess?api.addSlide():setUpgrade(true),duplicateSlide:(id:string)=>proAccess?api.duplicateSlide(id):setUpgrade(true)};
 
   const pickImage = (isReplace = false,slideId=state.currentSlideId) => {
@@ -109,8 +111,8 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   };
   const deleteProject=async()=>{if(!confirm(`Delete preset: ${state.project.name}?`))return;const response=await fetch(`/api/projects/${projectId}`,{method:"DELETE"});if(!response.ok){setNotice("Preset could not be deleted.");return}const created=await fetch("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:"{}"}).then(r=>r.json());location.href=`/editor?id=${created.id}`};
 
-  const stopRotation=()=>{if(rotation.current!==null)window.clearTimeout(rotation.current);rotation.current=null;setFading(false)};
-  const startRotation=()=>{stopRotation();let index=0;api.selectSlide(state.project.slides[0].id);const schedule=()=>{rotation.current=window.setTimeout(()=>{setFading(true);window.setTimeout(()=>{index=(index+1)%state.project.slides.length;api.selectSlide(state.project.slides[index].id);setFading(false);schedule()},180)},Math.max(1,state.project.settings.speed)*1000)};schedule()};
+  const stopRotation=()=>{if(rotation.current!==null)window.clearTimeout(rotation.current);if(rotationSwap.current!==null)window.clearTimeout(rotationSwap.current);rotation.current=null;rotationSwap.current=null;setFading(false)};
+  const startRotation=()=>{stopRotation();let index=0;api.selectSlide(state.project.slides[0].id);const schedule=()=>{rotation.current=window.setTimeout(()=>{setFading(true);rotationSwap.current=window.setTimeout(()=>{index=(index+1)%state.project.slides.length;api.selectSlide(state.project.slides[index].id);setFading(false);rotationSwap.current=null;schedule()},180)},Math.max(1,state.project.settings.speed)*1000)};schedule()};
   const getPublishedUrl=async()=>{if(publishedUrl)return publishedUrl;await saveCoordinator.saveNow(state.project);const response=await fetch("/api/overlays/publish",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId})});const data=await response.json();if(!response.ok)throw new Error(data.message);const url=new URL(data.url,location.origin).toString();setPublishedUrl(url);return url};
   const copyUrl=async()=>{try{const url=await getPublishedUrl();await navigator.clipboard.writeText(url);setNotice("Overlay URL copied ✓ Updated version included in link.")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
   const testUrl=async()=>{try{const url=await getPublishedUrl();window.open(url,"_blank","noopener,noreferrer")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
@@ -126,7 +128,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
         onOverlayOnly={()=>setOverlayOnly(value=>!value)}
       />
       {notice && <div className="editor-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
-      <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} fading={fading} />
+      <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} fading={fading} onInteractionChange={setInteracting} />
     </section>
     {upgrade&&<div className="modal-backdrop"><section className="card upgrade-modal"><h2>Unlock unlimited slides</h2><p>Free projects support one slide. Pro unlocks unlimited slides, premium animations, and hosted Pro overlays.</p><div className="actions"><a className="button" href="/billing">Upgrade to Pro</a><button onClick={()=>setUpgrade(false)}>Not now</button></div></section></div>}
     <input ref={imageInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { readImage(event.target.files?.[0]); event.target.value = ""; }} />
