@@ -95,3 +95,4 @@ it("does not start autosave while a pointer interaction is active", async () => 
   await act(async()=>{await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY)});
   expect(fetchMock).toHaveBeenCalledOnce();
 });
+

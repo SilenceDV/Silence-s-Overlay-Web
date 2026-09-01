@@ -9,4 +9,4 @@ export interface Slide { id:string; name:string; entranceAnimation:EntranceAnima
 export interface EditorSettings { speed:number; theme:"themeNone"|"themeGlowBlueOrange"|"themeNeonGreenPurple"|"themeGoldVIP"|"themeFire"|"themeIce"; preview:"previewChecker"|"previewClear"|"previewBlack"|"previewGreen"; showCenter:boolean; showSafe:boolean }
 export interface Project { id:string; name:string; schemaVersion:2; slides:Slide[]; settings:EditorSettings; updatedAt:string }
 export interface EditorState { project:Project; currentSlideId:string; selectedLayerId:string|null; past:Project[]; future:Project[]; saveStatus:"saved"|"saving"|"dirty"|"error" }
-export interface PublishedOverlay { publicId:string; ownerId:string; projectId:string; enabled:boolean; snapshot:Project; publishedAt:string }
+export interface PublishedOverlay { publicId:string; ownerId:string; projectId:string; enabled:boolean; snapshot:Project|import("@/lib/overlays/legacy").LegacyPublishedSnapshot; publishedAt:string }

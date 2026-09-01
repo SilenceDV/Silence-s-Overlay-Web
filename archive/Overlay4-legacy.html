@@ -1980,23 +1980,26 @@ function decodeOverlayData(str){
   const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes));
 }
-function overlayURL(){
-  const data={
+function legacyProjectData(){
+  return {
     version:7,
     settings:getSettings(),
     slides:slides.map(normSlide)
   };
-  const encoded=encodeOverlayData(data);
-  return window.location.href.split("?")[0].split("#")[0]+"?mode=overlay#data="+encoded;
 }
-function copyOverlayURL(){
-  const u=overlayURL();
-  const msg = u.length > 150000
-    ? "Overlay URL copied ✓ Warning: this URL is very large because images are stored inside it. If TikTok Studio refuses it, use smaller/compressed PNGs."
-    : "Overlay URL copied ✓ Updated version included in link.";
-  navigator.clipboard.writeText(u).then(()=>{$("saveStatus").textContent=msg}).catch(()=>prompt("Copy this URL:",u));
+async function overlayURL(){
+  const previousProjectId=localStorage.getItem("SILENCE_LEGACY_HOSTED_PROJECT_ID");
+  const response=await fetch("/api/overlays/publish",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({legacyProject:legacyProjectData(),...(previousProjectId?{projectId:previousProjectId}:{})})});
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.message||"Overlay publishing failed");
+  localStorage.setItem("SILENCE_LEGACY_HOSTED_PROJECT_ID",result.projectId);
+  return new URL(result.url,location.origin).href;
 }
-function testOverlayURL(){const u=overlayURL(); window.open(u,"_blank")}
+async function copyOverlayURL(){
+  try{const u=await overlayURL();await navigator.clipboard.writeText(u);$("saveStatus").textContent="Overlay URL copied ✓ Published version included in link."}
+  catch(err){console.error(err);$("saveStatus").textContent=err.message||"Overlay publishing failed";alert(err.message||"Overlay publishing failed. Sign in and try again.")}
+}
+async function testOverlayURL(){try{const u=await overlayURL();window.open(u,"_blank")}catch(err){console.error(err);alert(err.message||"Overlay publishing failed. Sign in and try again.")}}
 function toggleOverlayOnly(){document.body.classList.toggle("overlayOnly"); setTimeout(()=>{resizeStage(); renderStage(false)},50)}
 
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1); r.onupgradeneeded=e=>{db=e.target.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:"name"})}; r.onsuccess=e=>{db=e.target.result;res()}; r.onerror=()=>rej(r.error)})}
@@ -2114,6 +2117,20 @@ async function init(){
   if(mode==="overlay"){
     document.body.classList.add("overlayOnly");
     setPreview("previewClear",false);
+  }
+
+  const publicId=params.get("publicId");
+  if(publicId){
+    try{
+      const response=await fetch("/api/o/"+encodeURIComponent(publicId)+"/snapshot",{cache:"no-store"});
+      if(!response.ok)throw new Error("Published overlay failed to load");
+      const data=await response.json();
+      setSettings(Object.assign({speed:5,theme:"themeNone",preview:"previewClear"},data.settings||{}));
+      setPreview("previewClear",false);
+      slides=(data.slides||[]).map(normSlide);
+      if(!slides.length)throw new Error("Published overlay has no slides");
+      currentIndex=0;selectedId="";renderAll(true);pushHistory();startOverlay();return;
+    }catch(err){console.error(err);alert("Published overlay failed to load.");return}
   }
 
   if(location.hash.startsWith("#data=")){

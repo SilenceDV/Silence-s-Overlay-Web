@@ -11,3 +11,4 @@ export function EditorToolbar({api,layer,settings,onAddImage,onOverlayOnly}:{api
   <div className="toolGroup"><span className="toolbarLabel">View</span><button className={`icon dark ${settings.showCenter?"active":""}`} title="Center Guides" onClick={()=>view({showCenter:!settings.showCenter})}>＋</button><button className={`icon dark ${settings.showSafe?"active":""}`} title="Safe Area" onClick={()=>view({showSafe:!settings.showSafe})}>▣</button><button className="icon dark" title="Overlay Only" onClick={onOverlayOnly}>👁</button></div>
  </header>;
 }
+

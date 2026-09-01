@@ -1,2 +1,3 @@
 import { expect,it } from "vitest";import { defaultProject } from "@/lib/editor/defaults";import { pushHistory,redoProject,undoProject } from "@/lib/editor/history";
 it("undoes and redoes immutable project snapshots",()=>{const a=defaultProject();const past=pushHistory([],a);const b=structuredClone(a);b.name="Changed";const undone=undoProject(past,b,[]);expect(undone.current.name).toBe("");expect(redoProject(undone.past,undone.current,undone.future).current.name).toBe("Changed");});
+

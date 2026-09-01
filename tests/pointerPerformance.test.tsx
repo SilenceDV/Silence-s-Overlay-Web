@@ -44,3 +44,4 @@ it.runIf(process.env.RUN_LONG_PERF==="1")("sustains real-time pointer updates fo
   expect(updateLayerLive).not.toHaveBeenCalled();
   expect(checkpoint).not.toHaveBeenCalled();
 },70_000);
+

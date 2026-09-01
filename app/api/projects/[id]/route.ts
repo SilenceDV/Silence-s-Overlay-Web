@@ -3,16 +3,17 @@ import { requireUser } from "@/lib/auth/server";
 import { enforcePremiumAnimations, enforceProjectEntitlements, getEntitlements } from "@/lib/billing/entitlements";
 import { apiError } from "@/lib/http";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { duplicateProject, normalizeProjectId } from "@/lib/projects/projectIds";
 import { projectSchema } from "@/lib/validation/projectSchemas";
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_: Request, context: Context) {
-  try { const user = await requireUser(); const { id } = await context.params; const { data, error } = await createSupabaseAdminClient().from("projects").select("id,name,data,version,updated_at").eq("id", id).eq("owner_id", user.id).single(); if (error) throw Object.assign(new Error("Project not found"), { code: "NOT_FOUND" }); return NextResponse.json(data); }
+  try { const user = await requireUser(); const id = normalizeProjectId((await context.params).id); const { data, error } = await createSupabaseAdminClient().from("projects").select("id,name,data,version,updated_at").eq("id", id).eq("owner_id", user.id).single(); if (error) throw Object.assign(new Error("Project not found"), { code: "NOT_FOUND" }); return NextResponse.json(data); }
   catch (error) { return apiError(error, 404); }
 }
 export async function PUT(request: Request, context: Context) {
   try {
-    const user = await requireUser(); const { id } = await context.params; const body = await request.json(); const project = projectSchema.parse(body.project);
+    const user = await requireUser(); const id = normalizeProjectId((await context.params).id); const body = await request.json(); const candidate = structuredClone(body.project); candidate.id = normalizeProjectId(candidate.id); const project = projectSchema.parse(candidate);
     if (project.id !== id) throw new Error("Project ID mismatch");
     const entitlements=await getEntitlements(user.id); enforceProjectEntitlements(project.slides.length,entitlements); enforcePremiumAnimations(project,entitlements);
     const { data, error } = await createSupabaseAdminClient().from("projects").update({ name: project.name, data: project, version: Number(body.version) + 1, updated_at: new Date().toISOString() }).eq("id", id).eq("owner_id", user.id).eq("version", body.version).select("version,updated_at").maybeSingle();
@@ -23,10 +24,10 @@ export async function PUT(request: Request, context: Context) {
 }
 export async function PATCH(request: Request, context: Context) {
   try {
-    const user = await requireUser(); const { id } = await context.params; const body = await request.json(); const db = createSupabaseAdminClient();
+    const user = await requireUser(); const id = normalizeProjectId((await context.params).id); const body = await request.json(); const db = createSupabaseAdminClient();
     if (body.action === "duplicate") {
       const { data: source, error: sourceError } = await db.from("projects").select("data").eq("id", id).eq("owner_id", user.id).single(); if (sourceError) throw sourceError;
-      const project = projectSchema.parse(structuredClone(source.data)); project.id = crypto.randomUUID(); project.name = `${project.name} copy`; project.updatedAt = new Date().toISOString(); const entitlements=await getEntitlements(user.id); enforceProjectEntitlements(project.slides.length,entitlements); enforcePremiumAnimations(project,entitlements);
+      const project = duplicateProject(projectSchema.parse(structuredClone(source.data))); const entitlements=await getEntitlements(user.id); enforceProjectEntitlements(project.slides.length,entitlements); enforcePremiumAnimations(project,entitlements);
       const { data, error } = await db.from("projects").insert({ id: project.id, owner_id: user.id, name: project.name, data: project, version: 1 }).select("id,name,version,updated_at").single(); if (error) throw error; return NextResponse.json(data, { status: 201 });
     }
     const name = String(body.name || "").trim().slice(0, 200); if (!name) throw new Error("Name is required");
@@ -35,4 +36,4 @@ export async function PATCH(request: Request, context: Context) {
     return NextResponse.json(data[0]);
   } catch (error) { return apiError(error); }
 }
-export async function DELETE(_: Request, context: Context) { try { const user = await requireUser(); const { id } = await context.params; const { error } = await createSupabaseAdminClient().from("projects").delete().eq("id", id).eq("owner_id", user.id); if (error) throw error; return new NextResponse(null, { status: 204 }); } catch (error) { return apiError(error); } }
+export async function DELETE(_: Request, context: Context) { try { const user = await requireUser(); const id = normalizeProjectId((await context.params).id); const { error } = await createSupabaseAdminClient().from("projects").delete().eq("id", id).eq("owner_id", user.id); if (error) throw error; return new NextResponse(null, { status: 204 }); } catch (error) { return apiError(error); } }
