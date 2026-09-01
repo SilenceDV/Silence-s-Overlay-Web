@@ -35,4 +35,3 @@ describe("hosted image rendering parity",()=>{
   expect(legacyImageGeometry(layer)).toMatchObject({width:"100%",height:"100%"});
  });
 });
-
