@@ -59,4 +59,3 @@ it("keeps the editor API stable across project mutations",()=>{
   act(()=>api.updateLayer(result.current.state.selectedLayerId!,{x:63}));
   expect(result.current.api).toBe(api);
 });
-

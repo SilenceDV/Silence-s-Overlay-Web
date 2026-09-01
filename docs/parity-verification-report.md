@@ -56,4 +56,3 @@ Therefore the following required authenticated checks remain unverified: project
 3. Re-run the full browser matrix after authenticated data hydration and hosted overlay publication.
 
 Until these blockers are complete, PR #17 must remain draft and must not be described as exact parity.
-

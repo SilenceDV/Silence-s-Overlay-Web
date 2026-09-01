@@ -65,4 +65,3 @@ sidebars, editor API, history, and autosave inputs remain unchanged until releas
 the gated real-time 60-second test (`RUN_LONG_PERF=1`). Autosave coverage verifies that
 no timer fires while an interaction is active and that exactly one save is scheduled
 after it ends. Editor-state coverage verifies stable API identity across mutations.
-

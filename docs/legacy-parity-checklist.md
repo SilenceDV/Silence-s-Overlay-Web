@@ -212,4 +212,3 @@ Each row must be exercised in the legacy file and React editor at the same viewp
 ## Audit conclusion before implementation
 
 The baseline is not at parity. Exact parity has **not** been achieved. The implementation phase must restore every defect above while preserving the backend-only exceptions. Direct screenshot and workflow verification is mandatory before any completion claim.
-

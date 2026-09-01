@@ -135,4 +135,3 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     <input ref={projectInput} hidden type="file" accept="application/json,.json" onChange={(event) => { importProject(event.target.files?.[0]); event.target.value = ""; }} />
   </div>;
 }
-

@@ -23,4 +23,3 @@ export function StageViewport({ children }: { children: ReactNode; preview: stri
 
   return <div id="stageViewport" ref={viewport}><div id="stage" ref={stage} className="stage" style={{ width: 1920, height: 1080, transformOrigin: "top left" }}>{children}</div></div>;
 }
-

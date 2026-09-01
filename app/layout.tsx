@@ -11,4 +11,3 @@ export const metadata: Metadata = { title: "Silence's Overlay Maker", descriptio
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <html lang="en"><head><link rel="preconnect" href="https://fonts.googleapis.com"/><link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet"/></head><body>{children}</body></html>;
 }
-

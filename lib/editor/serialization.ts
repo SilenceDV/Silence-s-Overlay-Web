@@ -9,4 +9,3 @@ export const serializeLegacyProject=(p:Project)=>JSON.stringify({
 },null,2);
 export const deserializeProject=(value:string)=>normalizeProject(JSON.parse(value) as unknown);
 export const sanitizePublishedProject=(p:Project):Project=>normalizeProject(p);
-

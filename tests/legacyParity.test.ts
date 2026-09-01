@@ -14,4 +14,3 @@ describe("legacy parity data contract",()=>{
  it("normalizes replacement IDs to the selected cloud UUID",()=>{const routeId=crypto.randomUUID(),imported=deserializeProject(JSON.stringify({id:"project_old",slides:[{layers:[{type:"text",text:"x"}]}]}));imported.id=routeId;expect(imported.id).toBe(routeId)});
  it("undoes and redoes legacy animation properties",()=>{const a=defaultProject(),past=pushHistory([],a),b=structuredClone(a);const text=b.slides[0].layers[0];if(text.type!=="text")throw new Error();text.textAnimation="waveLetters";const undone=undoProject(past,b,[]),redone=redoProject(undone.past,undone.current,undone.future);expect((undone.current.slides[0].layers[0] as {textAnimation:string}).textAnimation).toBe("none");expect((redone.current.slides[0].layers[0] as {textAnimation:string}).textAnimation).toBe("waveLetters")});
 });
-

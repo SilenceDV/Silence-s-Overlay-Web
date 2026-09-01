@@ -42,4 +42,3 @@ export function useAutosave(project: Project, dirty: boolean, projectId: string,
   const saveNow = useCallback((snapshot: Project) => coordinator.enqueue(snapshot, revision.current), [coordinator]);
   return { version: coordinator, saveNow };
 }
-
