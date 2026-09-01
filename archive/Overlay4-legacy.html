@@ -1028,8 +1028,50 @@ let db, slides=[], currentIndex=0, selectedId="", edit=null, rotationTimer=null,
 let activePresetName="";
 let lastTextClick={id:"",time:0};
 let history=[], redoStack=[], draggingSlide=null, draggingLayer=null, replacingLayerId="";
+let cloudProjectId="", cloudVersion=1, cloudProjects=[];
 const $=id=>document.getElementById(id);
 const stage=$("stage"), viewport=$("stageViewport"), animWrap=$("animWrap"), overlayContent=$("overlayContent"), canvasArea=$("canvasArea"), snapGuide=$("snapGuide");
+
+function cloudProjectData(){
+  return {
+    id:cloudProjectId,
+    name:$("presetName").value.trim(),
+    schemaVersion:2,
+    slides:slides.map(s=>({
+      ...s,
+      name:s.giftName||"New Gift",
+      entranceAnimation:s.animation||"none",
+      duration:Number(s.duration)||0,
+      layers:s.layers.map(l=>l.type==="image"?{
+        ...l,
+        imageUrl:l.imageUrl||l.image||"",
+        imageWidth:Number(l.imageWidth??l.imgW??l.w)||28,
+        imageHeight:Number(l.imageHeight??l.imgH??l.h)||28,
+        animation:{type:typeof l.animation==="string"?l.animation:"none",speed:Number(l.animationSpeed)||1,intensity:1,delay:0}
+      }:{
+        ...l,
+        animation:{type:typeof l.animation==="string"?l.animation:"none",speed:Number(l.animationSpeed)||1,intensity:1,delay:0}
+      })
+    })),
+    settings:{...getSettings(),showCenter:document.body.classList.contains("showCenter"),showSafe:document.body.classList.contains("showSafe")},
+    updatedAt:new Date().toISOString()
+  };
+}
+function currentProjectToLegacy(project){
+  return {
+    name:project.name||"",
+    settings:project.settings||{},
+    slides:(project.slides||[]).map(s=>({
+      ...s,
+      giftName:s.name||s.giftName||"New Gift",
+      animation:s.entranceAnimation||s.animation||"none",
+      layers:(s.layers||[]).map(l=>l.type==="image"?{...l,image:l.imageUrl||l.image||"",imgW:l.imageWidth??l.imgW,imgH:l.imageHeight??l.imgH,animation:l.animation?.type||l.animation||"none",animationSpeed:l.animation?.speed||l.animationSpeed||1}:{...l,animation:l.animation?.type||l.animation||"none",animationSpeed:l.animation?.speed||l.animationSpeed||1})
+    }))
+  };
+}
+async function cloudRequest(url,options){const response=await fetch(url,options);const data=response.status===204?null:await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.message||"Cloud project request failed");return data}
+async function saveCloudProject(){const result=await cloudRequest("/api/projects/"+encodeURIComponent(cloudProjectId),{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({project:cloudProjectData(),version:cloudVersion})});cloudVersion=result.version;return result}
+async function loadCloudProject(projectId){const row=await cloudRequest("/api/projects/"+encodeURIComponent(projectId));cloudProjectId=row.id;cloudVersion=row.version;const project=currentProjectToLegacy(row.data);loading=true;$("presetName").value=project.name;activePresetName=project.name;setSettings(Object.assign({speed:5,theme:"themeNone",preview:"previewChecker"},project.settings));slides=project.slides.map(normSlide);if(!slides.length)slides=[defaultSlide()];currentIndex=0;selectedId=slides[0].layers[0]?.id||"";renderAll(true);loading=false;history=[];pushHistory();$("saveStatus").textContent="Loaded: "+(project.name||"Untitled Overlay");await loadList()}
 
 function id(prefix){return prefix+"_"+Math.random().toString(36).slice(2,9)+"_"+Date.now().toString(36)}
 function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll('"',"&quot;").replaceAll("<","&lt;").replaceAll(">","&gt;")}
@@ -1980,20 +2022,36 @@ function decodeOverlayData(str){
   const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes));
 }
+async function encodeCompressedOverlayData(obj){
+  const input=new TextEncoder().encode(JSON.stringify(obj));
+  const compressed=await new Response(new Blob([input]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+  const bytes=new Uint8Array(compressed);
+  let binary="";
+  for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  return btoa(binary).replaceAll("+","-").replaceAll("/","_").replace(/=+$/g,"");
+}
+async function decodeCompressedOverlayData(value){
+  const base64=value.replaceAll("-","+").replaceAll("_","/")+"=".repeat((4-value.length%4)%4);
+  const binary=atob(base64),bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+  const decompressed=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return JSON.parse(new TextDecoder().decode(decompressed));
+}
 function legacyProjectData(){
   return {
+    name:$("presetName").value.trim()||"Legacy Overlay",
     version:7,
     settings:getSettings(),
     slides:slides.map(normSlide)
   };
 }
 async function overlayURL(){
-  const previousProjectId=localStorage.getItem("SILENCE_LEGACY_HOSTED_PROJECT_ID");
-  const response=await fetch("/api/overlays/publish",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({legacyProject:legacyProjectData(),...(previousProjectId?{projectId:previousProjectId}:{})})});
-  const result=await response.json();
-  if(!response.ok)throw new Error(result.message||"Overlay publishing failed");
-  localStorage.setItem("SILENCE_LEGACY_HOSTED_PROJECT_ID",result.projectId);
-  return new URL(result.url,location.origin).href;
+  if(cloudProjectId){
+    await saveCloudProject();
+    const published=await cloudRequest("/api/overlays/publish",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({projectId:cloudProjectId,legacyProject:legacyProjectData()})});
+    return new URL(published.url,location.origin).href;
+  }
+  const encoded=await encodeCompressedOverlayData(legacyProjectData());
+  return location.href.split("?")[0].split("#")[0]+"?mode=overlay#compressed="+encoded;
 }
 async function copyOverlayURL(){
   try{const u=await overlayURL();await navigator.clipboard.writeText(u);$("saveStatus").textContent="Overlay URL copied ✓ Published version included in link."}
@@ -2024,9 +2082,10 @@ function presetNameFinished(){
 }
 
 
-function newPreset(){
+async function newPreset(){
   const proceed = confirm("Start a new preset? Unsaved changes in the current preset may be lost.");
   if(!proceed)return;
+  if(cloudProjectId){const created=await cloudRequest("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});parent.location.href="/editor?id="+encodeURIComponent(created.id);return}
 
   clearTimeout(autosaveTimer);
   activePresetName="";
@@ -2048,11 +2107,13 @@ function newPreset(){
   pushHistory();
 }
 
-async function savePreset(){const name=$("presetName").value.trim(); if(!name){alert("Type a preset name first.");return} await putPreset({name,version:7,settings:getSettings(),slides:slides.map(normSlide),savedAt:Date.now()}); activePresetName=name; localStorage.setItem("SILENCE_LAST_PRESET_V7",name); await loadList(); $("presetSelect").value=name; $("saveStatus").textContent="Saved ✓ "+name}
+async function savePreset(){const name=$("presetName").value.trim(); if(!name){alert("Type a preset name first.");return}if(cloudProjectId){await saveCloudProject();activePresetName=name;await loadList();$("presetSelect").value=cloudProjectId;$("saveStatus").textContent="Saved ✓ "+name;return} await putPreset({name,version:7,settings:getSettings(),slides:slides.map(normSlide),savedAt:Date.now()}); activePresetName=name; localStorage.setItem("SILENCE_LAST_PRESET_V7",name); await loadList(); $("presetSelect").value=name; $("saveStatus").textContent="Saved ✓ "+name}
 async function autoSave(){
   const typedName=$("presetName").value.trim();
 
   if(!typedName||loading)return;
+
+  if(cloudProjectId){try{await saveCloudProject();activePresetName=typedName;$("saveStatus").textContent="Saved ✓ "+new Date().toLocaleTimeString()}catch(e){$("saveStatus").textContent=e.message||"Autosave failed."}return}
 
   // If the typed name has not been explicitly saved/loaded yet,
   // do not autosave it as a new preset. This prevents duplicate partial presets.
@@ -2072,11 +2133,11 @@ async function autoSave(){
   }
 }
 function markDirty(auto=true){if(loading)return; $("saveStatus").textContent="Unsaved changes..."; clearTimeout(autosaveTimer); if(auto)autosaveTimer=setTimeout(autoSave,700)}
-async function loadList(){const sel=$("presetSelect"), cur=sel.value; sel.innerHTML='<option value="">Select preset...</option>'; (await allPresets()).map(p=>p.name).sort().forEach(n=>{const o=document.createElement("option"); o.value=n;o.textContent=n;sel.appendChild(o)}); if([...sel.options].some(o=>o.value===cur))sel.value=cur}
-async function loadPreset(n){if(!n)return; loading=true; const p=await getPreset(n); if(!p){loading=false;return alert("Preset not found.")} $("presetName").value=p.name; setSettings(Object.assign({theme:"themeNone"},p.settings||{})); slides=(p.slides||[]).map(normSlide); if(!slides.length)slides=[defaultSlide()]; currentIndex=0; selectedId=slides[0].layers[0]?.id||""; renderAll(true); activePresetName=p.name; $("saveStatus").textContent="Loaded: "+p.name; loading=false; history=[]; pushHistory()}
-async function deletePreset(){const n=$("presetName").value.trim(); if(!n)return alert("Type or load a preset name first."); if(!confirm("Delete preset: "+n+"?"))return; await delPreset(n); $("presetName").value=""; activePresetName=""; slides=[defaultSlide()]; currentIndex=0; selectedId=slides[0].layers[0].id; await loadList(); renderAll(true); $("saveStatus").textContent="Preset deleted."; history=[]; pushHistory()}
+async function loadList(){const sel=$("presetSelect"), cur=sel.value;sel.innerHTML='<option value="">Select preset...</option>';if(cloudProjectId){const result=await cloudRequest("/api/projects");cloudProjects=result.projects||[];cloudProjects.forEach(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name||"Untitled Overlay";sel.appendChild(o)});sel.value=cloudProjectId;return}(await allPresets()).map(p=>p.name).sort().forEach(n=>{const o=document.createElement("option"); o.value=n;o.textContent=n;sel.appendChild(o)}); if([...sel.options].some(o=>o.value===cur))sel.value=cur}
+async function loadPreset(n){if(!n)return;if(cloudProjectId){parent.location.href="/editor?id="+encodeURIComponent(n);return} loading=true; const p=await getPreset(n); if(!p){loading=false;return alert("Preset not found.")} $("presetName").value=p.name; setSettings(Object.assign({theme:"themeNone"},p.settings||{})); slides=(p.slides||[]).map(normSlide); if(!slides.length)slides=[defaultSlide()]; currentIndex=0; selectedId=slides[0].layers[0]?.id||""; renderAll(true); activePresetName=p.name; $("saveStatus").textContent="Loaded: "+p.name; loading=false; history=[]; pushHistory()}
+async function deletePreset(){const n=$("presetName").value.trim(); if(!n)return alert("Type or load a preset name first."); if(!confirm("Delete preset: "+n+"?"))return;if(cloudProjectId){await cloudRequest("/api/projects/"+encodeURIComponent(cloudProjectId),{method:"DELETE"});const created=await cloudRequest("/api/projects",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});parent.location.href="/editor?id="+encodeURIComponent(created.id);return} await delPreset(n); $("presetName").value=""; activePresetName=""; slides=[defaultSlide()]; currentIndex=0; selectedId=slides[0].layers[0].id; await loadList(); renderAll(true); $("saveStatus").textContent="Preset deleted."; history=[]; pushHistory()}
 function exportPreset(){const name=$("presetName").value.trim()||"Silence Overlay Preset"; const blob=new Blob([JSON.stringify({name,version:7,settings:getSettings(),slides:slides.map(normSlide),exportedAt:new Date().toISOString()},null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name.replace(/[\\/:*?"<>|]/g,"_")+".json"; a.click(); URL.revokeObjectURL(a.href)}
-function importPreset(e){const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async ev=>{try{const p=JSON.parse(ev.target.result); if(!Array.isArray(p.slides))return alert("Invalid preset JSON."); p.name=p.name||f.name.replace(/\.json$/i,""); p.version=7; p.settings=Object.assign({theme:"themeNone"},p.settings||{}); p.slides=p.slides.map(normSlide); await putPreset(p); await loadList(); await loadPreset(p.name)}catch(err){alert("Import failed.")} e.target.value=""}; r.readAsText(f)}
+function importPreset(e){const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async ev=>{try{const p=JSON.parse(ev.target.result); if(!Array.isArray(p.slides))return alert("Invalid preset JSON."); p.name=p.name||f.name.replace(/\.json$/i,""); p.version=7; p.settings=Object.assign({theme:"themeNone"},p.settings||{}); p.slides=p.slides.map(normSlide);if(cloudProjectId){loading=true;$("presetName").value=p.name;setSettings(p.settings);slides=p.slides;currentIndex=0;selectedId=slides[0].layers[0]?.id||"";renderAll(true);loading=false;await saveCloudProject();activePresetName=p.name;$("saveStatus").textContent="Imported and saved ✓";history=[];pushHistory()}else{await putPreset(p);await loadList();await loadPreset(p.name)}}catch(err){alert("Import failed.")} e.target.value=""}; r.readAsText(f)}
 
 function attach(){
   window.addEventListener("resize",()=>{resizeStage(); renderStage(false)});
@@ -2113,10 +2174,16 @@ async function init(){
   const params=new URLSearchParams(location.search);
   const mode=params.get("mode");
   const preset=params.get("preset");
+  const editorProjectId=params.get("editorProjectId");
 
   if(mode==="overlay"){
     document.body.classList.add("overlayOnly");
     setPreview("previewClear",false);
+  }
+
+  if(editorProjectId){
+    try{await loadCloudProject(editorProjectId);return}
+    catch(err){console.error(err);alert("Cloud project failed to load.");parent.location.href="/dashboard";return}
   }
 
   const publicId=params.get("publicId");
@@ -2131,6 +2198,19 @@ async function init(){
       if(!slides.length)throw new Error("Published overlay has no slides");
       currentIndex=0;selectedId="";renderAll(true);pushHistory();startOverlay();return;
     }catch(err){console.error(err);alert("Published overlay failed to load.");return}
+  }
+
+  if(location.hash.startsWith("#compressed=")){
+    try{
+      const data=await decodeCompressedOverlayData(location.hash.slice("#compressed=".length));
+      setSettings(Object.assign({speed:5,theme:"themeNone",preview:"previewClear"},data.settings||{}));
+      if(mode==="overlay")setPreview("previewClear",false);
+      slides=(data.slides||[]).map(normSlide);
+      if(!slides.length)slides=[defaultSlide()];
+      currentIndex=0;selectedId=mode==="overlay"?"":(slides[0].layers[0]?.id||"");renderAll(true);pushHistory();
+      if(mode==="overlay")startOverlay();
+      return;
+    }catch(err){console.error(err);alert("Compressed overlay data failed to load. Copy the overlay URL again from the maker.")}
   }
 
   if(location.hash.startsWith("#data=")){
