@@ -12,16 +12,40 @@ function HostedLayer({layer}:{layer:Layer}){
   </div>;
 }
 
-export function OverlayClient({project,publicId}:{project:Project;publicId:string}){
+export function OverlayClient({project:initialProject,publicId}:{project:Project;publicId:string}){
   const [active,setActive]=useState(true);
+  const [project,setProject]=useState(initialProject);
   const [index,setIndex]=useState(0);
-  useEffect(()=>{const timer=setInterval(()=>setIndex(i=>(i+1)%project.slides.length),Math.max(1,project.settings.speed)*1000);const validation=setInterval(()=>fetch(`/api/o/${publicId}/status`,{cache:"no-store"}).then(r=>r.json()).then(r=>setActive(r.active===true)).catch(()=>setActive(false)),300000);return()=>{clearInterval(timer);clearInterval(validation)}},[project,publicId]);
-  if(!active)return null;
+
+  // Keep an already-open browser source/test URL synchronized with editor saves.
+  // Polling is intentionally lightweight and avoids requiring a realtime channel.
+  useEffect(()=>{
+    let cancelled=false;
+    const refresh=()=>fetch(`/api/o/${publicId}/status`,{cache:"no-store"})
+      .then(r=>r.json())
+      .then(r=>{if(cancelled)return;setActive(r.active===true);if(r.active===true&&r.project)setProject(r.project as Project)})
+      .catch(()=>{if(!cancelled)setActive(false)});
+    refresh();
+    const timer=window.setInterval(refresh,2000);
+    return()=>{cancelled=true;window.clearInterval(timer)};
+  },[publicId]);
+
+  useEffect(()=>{
+    setIndex(i=>Math.min(i,Math.max(0,project.slides.length-1)));
+  },[project.slides.length]);
+
+  useEffect(()=>{
+    if(project.slides.length<2)return;
+    const timer=window.setInterval(()=>setIndex(i=>(i+1)%project.slides.length),Math.max(1,project.settings.speed)*1000);
+    return()=>window.clearInterval(timer);
+  },[project.slides.length,project.settings.speed]);
+
+  if(!active||project.slides.length===0)return null;
   const slide=project.slides[index];
   return <div className="overlay-only" style={{position:"fixed",inset:0,overflow:"hidden",background:"transparent"}}>
     <StageViewport preview="previewClear" fullViewport>
       <div id="overlayContent" className={project.settings.theme}>
-        <div id="animWrap" className={slide.entranceAnimation}>
+        <div id="animWrap" key={`${slide.id}-${index}`} className={slide.entranceAnimation}>
           {slide.layers.map(layer=><HostedLayer key={layer.id} layer={layer}/>) }
         </div>
       </div>
