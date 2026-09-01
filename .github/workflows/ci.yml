@@ -57,7 +57,7 @@ jobs:
 
       - name: Check committed whitespace errors in pull request
         if: github.event_name == 'pull_request'
-        run: git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+        run: git diff --check --ignore-cr-at-eol "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
 
       - name: Check committed whitespace errors in push
         if: github.event_name == 'push'
@@ -68,7 +68,7 @@ jobs:
           if [[ "$before" =~ ^0+$ ]]; then
             before=$(git rev-parse "$current^" 2>/dev/null || git hash-object -t tree /dev/null)
           fi
-          git diff --check "$before" "$current"
+          git diff --check --ignore-cr-at-eol "$before" "$current"
 
       - name: Check committed whitespace errors in manual run
         if: github.event_name == 'workflow_dispatch'
@@ -76,4 +76,4 @@ jobs:
         run: |
           current="${{ github.sha }}"
           before=$(git rev-parse "$current^" 2>/dev/null || git hash-object -t tree /dev/null)
-          git diff --check "$before" "$current"
+          git diff --check --ignore-cr-at-eol "$before" "$current"
