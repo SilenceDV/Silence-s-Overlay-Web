@@ -8,4 +8,4 @@ export interface Slide { id:string; name:string; entranceAnimation:"none"|"fade"
 export interface EditorSettings { speed:number; theme:"none"|"neon"|"glass"; preview:"checker"|"clear"|"black"|"green"; showCenter:boolean; showSafe:boolean }
 export interface Project { id:string; name:string; schemaVersion:2; slides:Slide[]; settings:EditorSettings; updatedAt:string }
 export interface EditorState { project:Project; currentSlideId:string; selectedLayerId:string|null; past:Project[]; future:Project[]; saveStatus:"saved"|"saving"|"dirty"|"error" }
-export interface PublishedOverlay { publicId:string; ownerId:string; projectId:string; enabled:boolean; snapshot:Project|import("@/lib/overlays/legacy").LegacyPublishedSnapshot; publishedAt:string }
+export interface PublishedOverlay { publicId:string; ownerId:string; projectId:string; enabled:boolean; snapshot:Project; publishedAt:string }
