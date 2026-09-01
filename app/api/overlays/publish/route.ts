@@ -8,14 +8,11 @@ import { createLegacyPublishedSnapshot } from "@/lib/overlays/legacy";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { publishRequestSchema } from "@/lib/validation/overlaySchemas";
 import { projectSchema } from "@/lib/validation/projectSchemas";
-import { normalizeProjectId } from "@/lib/projects/projectIds";
 
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const input = await req.json();
-    if (input.projectId) input.projectId = normalizeProjectId(input.projectId);
-    const body = publishRequestSchema.parse(input);
+    const body = publishRequestSchema.parse(await req.json());
     const db = createSupabaseAdminClient();
     let projectId = body.projectId;
     let project;
@@ -57,7 +54,6 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const user = await requireUser(), body = await req.json(), db = createSupabaseAdminClient();
-    body.projectId = normalizeProjectId(body.projectId);
     const patch: Record<string, unknown> = {};
     if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
     if (body.regenerate) patch.public_id = randomBytes(18).toString("base64url");
