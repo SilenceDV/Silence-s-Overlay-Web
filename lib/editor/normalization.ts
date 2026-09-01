@@ -1,5 +1,6 @@
 import { defaultAnimation, defaultImage, defaultProject, defaultSlide, defaultText } from "./defaults";
 import type { AnimationType, EditorSettings, EntranceAnimation, Layer, Project, Slide } from "@/types/editor";
+import { normalizeProjectIdOrNew } from "@/lib/projects/projectIds";
 
 const num=(v:unknown,f:number)=>typeof v==="number"&&Number.isFinite(v)?v:f;
 const str=(v:unknown,f:string)=>typeof v==="string"?v:f;
@@ -45,5 +46,5 @@ export function normalizeProject(input:unknown):Project{
   const themeAliases:Record<string,EditorSettings["theme"]>={none:"themeNone",neon:"themeNeonGreenPurple",glass:"themeGlowBlueOrange"};
   const previewAliases:Record<string,EditorSettings["preview"]>={checker:"previewChecker",clear:"previewClear",black:"previewBlack",green:"previewGreen"};
   const normalizedSettings:EditorSettings={speed:Math.max(1,num(settings.speed,d.settings.speed)),theme:oneOf(themeAliases[str(settings.theme,"")]??settings.theme,["themeNone","themeGlowBlueOrange","themeNeonGreenPurple","themeGoldVIP","themeFire","themeIce"] as const,d.settings.theme),preview:oneOf(previewAliases[str(settings.preview,"")]??settings.preview,["previewChecker","previewClear","previewBlack","previewGreen"] as const,d.settings.preview),showCenter:typeof settings.showCenter==="boolean"?settings.showCenter:d.settings.showCenter,showSafe:typeof settings.showSafe==="boolean"?settings.showSafe:d.settings.showSafe};
-  return {...p,...d,id:str(p.id,d.id),name:str(p.name,"Untitled Overlay"),slides:slides.length?slides:d.slides,settings:normalizedSettings,schemaVersion:2,updatedAt:str(p.updatedAt,new Date().toISOString())};
+  return {...p,...d,id:normalizeProjectIdOrNew(p.id),name:str(p.name,"Untitled Overlay"),slides:slides.length?slides:d.slides,settings:normalizedSettings,schemaVersion:2,updatedAt:str(p.updatedAt,new Date().toISOString())};
 }
