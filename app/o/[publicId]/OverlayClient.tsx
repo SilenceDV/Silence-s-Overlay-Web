@@ -19,7 +19,7 @@ export function OverlayClient({project,publicId}:{project:Project;publicId:strin
   if(!active)return null;
   const slide=project.slides[index];
   return <div className="overlay-only" style={{position:"fixed",inset:0,overflow:"hidden",background:"transparent"}}>
-    <StageViewport preview="previewClear">
+    <StageViewport preview="previewClear" fullViewport>
       <div id="overlayContent" className={project.settings.theme}>
         <div id="animWrap" className={slide.entranceAnimation}>
           {slide.layers.map(layer=><HostedLayer key={layer.id} layer={layer}/>) }
