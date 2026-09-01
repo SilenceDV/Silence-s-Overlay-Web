@@ -28,8 +28,6 @@ Copy `.env.example` to `.env.local` and set all values. In Vercel â†’ Project â†
 6. With Stripe test clocks or test payment methods, trigger `invoice.payment_failed`; confirm grace access and its warning, advance beyond `grace_period_end`, and confirm deactivation. Pay the invoice/resubscribe and confirm the same public link recovers after revalidation.
 7. Trigger test refund and dispute webhooks and verify suspension policy. Close a dispute and send a subsequent subscription update to restore authoritative state.
 
-Legacy version-7 overlays are published as lossless JSON snapshots so embedded PNG/JPEG/WebP data URLs and unknown legacy effect properties remain intact. The publish API rejects snapshots above 3.5 MB with `SNAPSHOT_TOO_LARGE`; it never strips image data. This cap keeps requests below common serverless body limits. Compress embedded images before retrying. The public `/o/{publicId}` URL contains only the random public ID, regardless of snapshot size.
-
 ## 5. Deploy
 
 Run `npm install`, `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build`. Push the committed branch connected to Vercel, apply the migration to production, configure the production webhook, deploy, and repeat the acceptance tests against the deployed HTTPS routes.
