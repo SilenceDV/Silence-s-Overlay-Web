@@ -1,5 +1,6 @@
 import { normalizeProject } from "@/lib/editor/normalization";
 import type { Project } from "@/types/editor";
+import { normalizeProjectIdOrNew } from "@/lib/projects/projectIds";
 
 export const MAX_LEGACY_SNAPSHOT_BYTES = 3_500_000;
 
@@ -30,7 +31,7 @@ export function parseLegacyProject(value: unknown): LegacyProjectV7 {
 
 export function legacyProjectToCurrent(legacy: LegacyProjectV7, id = crypto.randomUUID()): Project {
   return normalizeProject({
-    id,
+    id: normalizeProjectIdOrNew(id),
     name: typeof legacy.name === "string" ? legacy.name : "Legacy Overlay",
     slides: legacy.slides.map(slide => ({ ...slide, name: slide.giftName, entranceAnimation: slide.animation })),
     settings: {
