@@ -1,64 +1,42 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
+"use client";
+
+import React, { useEffect, useRef, useState, type CSSProperties, type PointerEvent as RPE } from "react";
 import type { EditorApi } from "@/hooks/useEditorState";
-import { animationClass, animationStyle } from "@/lib/animations/layerAnimations";
-import { renderTextCharacters } from "@/lib/animations/textWave";
-import { clamp } from "@/lib/editor/geometry";
-import type { EditorSettings, Layer, Slide } from "@/types/editor";
+import type { EditorSettings, ImageLayer, Layer, Slide, TextLayer } from "@/types/editor";
 import { StageViewport } from "./StageViewport";
 
-function stageDelta(event: ReactPointerEvent, previousX: number, previousY: number) {
-  const stage = event.currentTarget.closest(".stage")?.getBoundingClientRect();
-  if (!stage?.width || !stage.height) return { x: 0, y: 0 };
-  return { x: (event.clientX - previousX) / stage.width * 100, y: (event.clientY - previousY) / stage.height * 100 };
+const handles=["nw","n","ne","e","se","s","sw","w"] as const;
+const ignoreInteraction=()=>undefined;
+const point=(e:RPE)=>{const r=e.currentTarget.closest(".stage")!.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*100,y:(e.clientY-r.top)/r.height*100,px:(e.clientX-r.left)/r.width*1920,py:(e.clientY-r.top)/r.height*1080}};
+const clearSnap=()=>{const guide=document.getElementById("snapGuide");if(guide){guide.innerHTML="";guide.style.display="none"}};
+
+function StageLayer({layer,selected,api,onInteractionChange}:{layer:Layer;selected:boolean;api:EditorApi;onInteractionChange:(active:boolean)=>void}){
+ const[editing,setEditing]=useState(false),[preview,setPreview]=useState<Partial<Layer>|null>(null),editCheckpoint=useRef(false);
+ const start=useRef<null|{x:number;y:number;px:number;py:number;layer:Layer;handle:string;alt:boolean}>(null),pending=useRef<Partial<Layer>|null>(null),frame=useRef<number|null>(null),snapKey=useRef("");
+ const rendered={...layer,...preview} as Layer;
+ const queue=(patch:Partial<Layer>)=>{pending.current=patch;if(frame.current!==null)return;frame.current=requestAnimationFrame(()=>{frame.current=null;setPreview(pending.current)})};
+ useEffect(()=>()=>{if(frame.current!==null)cancelAnimationFrame(frame.current);if(start.current)onInteractionChange(false)},[onInteractionChange]);
+ const down=(e:RPE,handle="")=>{e.preventDefault();e.stopPropagation();api.selectLayer(layer.id);if(layer.locked)return;e.currentTarget.setPointerCapture(e.pointerId);start.current={...point(e),layer:structuredClone(layer),handle,alt:e.altKey};pending.current=null;setPreview(null);onInteractionChange(true)};
+ const showGuides=(guides:Array<["v"|"h",number]>)=>{const key=guides.map(item=>item.join(":" )).join("|");if(key===snapKey.current)return;snapKey.current=key;const guide=document.getElementById("snapGuide");if(guide){guide.innerHTML=guides.map(([axis,value])=>`<div class="snap${axis.toUpperCase()}" style="${axis==="v"?"left":"top"}:${value}%"></div>`).join("");guide.style.display=guides.length?"block":"none"}};
+ const move=(e:RPE)=>{
+  e.stopPropagation();const active=start.current;if(!active||!e.currentTarget.hasPointerCapture(e.pointerId))return;
+  const p=point(e),dx=p.x-active.x,dy=p.y-active.y,dxp=p.px-active.px,dyp=p.py-active.py,h=active.handle,l=active.layer;
+  if(!h){if(active.alt&&layer.type==="image")queue({fit:"cover",cropX:(l as ImageLayer).cropX+dxp,cropY:(l as ImageLayer).cropY+dyp});else{let x=l.x+dx,y=l.y+dy;const guides:Array<["v"|"h",number]>=[];if(!e.shiftKey){for(const gx of [0,5,10,25,50,75,90,95,100])if(Math.abs(x-gx)<=.8){x=gx;guides.push(["v",gx]);break}for(const gy of [0,6.5,10,25,50,75,90,93.5,100])if(Math.abs(y-gy)<=.8){y=gy;guides.push(["h",gy]);break}}showGuides(guides);queue({x,y})}return}
+  let w=l.w,hg=l.h;if(h.includes("e"))w=l.w+dx;if(h.includes("w"))w=l.w-dx;if(h.includes("s"))hg=l.h+dy;if(h.includes("n"))hg=l.h-dy;w=Math.max(1,Math.min(160,w));hg=Math.max(1,Math.min(160,hg));
+  if(active.alt){const patch:Partial<Layer>={w,h:hg};if(layer.type==="image")Object.assign(patch,{fit:"cover",imageWidth:Math.max((l as ImageLayer).imageWidth,w),imageHeight:Math.max((l as ImageLayer).imageHeight,hg)});queue(patch);return}
+  const patch:Partial<Layer>={w,h:hg};if(layer.type==="text"){const ratio=(h==="e"||h==="w")?w/l.w:(h==="n"||h==="s")?hg/l.h:Math.abs(w/l.w-1)>Math.abs(hg/l.h-1)?w/l.w:hg/l.h;Object.assign(patch,{fontSize:Math.max(8,(l as TextLayer).fontSize*ratio)})}else{const im=l as ImageLayer;Object.assign(patch,{imageWidth:im.imageWidth*w/l.w,imageHeight:im.imageHeight*hg/l.h,cropX:im.cropX*w/l.w,cropY:im.cropY*hg/l.h})}queue(patch);
+ };
+ const up=(e?:RPE)=>{e?.stopPropagation();if(!start.current)return;if(frame.current!==null){cancelAnimationFrame(frame.current);frame.current=null}const patch=pending.current;start.current=null;pending.current=null;setPreview(null);snapKey.current="";clearSnap();onInteractionChange(false);if(patch)api.updateLayer(layer.id,patch)};
+ const style={left:`${rendered.x}%`,top:`${rendered.y}%`,width:`${rendered.w}%`,height:`${rendered.h}%`,opacity:rendered.opacity/100,"--textAnimSpeed":`${rendered.type==="text"?rendered.textAnimationSpeed:1.15}s`,"--letterDelay":`${rendered.type==="text"?rendered.textLetterDelay:.055}s`,"--shimmerSpeed":`${rendered.type==="text"?rendered.textShimmerSpeed:2.2}s`,"--burstSpeed":`${rendered.type==="image"?rendered.burstSpeed:.82}s`,"--layerAnimSpeed":`${rendered.type==="image"?rendered.imageAnimationSpeed:1.4}s`} as CSSProperties;
+ return <div className={`layerBox ${selected?"selected":""} ${rendered.locked?"locked":""} ${rendered.type==="image"&&rendered.fit==="cover"?"imageCropped":""} ${rendered.type==="image"?`${rendered.imageAnimation} ${rendered.burstEffect}`:""}`} style={style} onPointerDown={e=>down(e)} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={e=>{e.stopPropagation();if(rendered.type==="text"&&!rendered.locked){editCheckpoint.current=false;setEditing(true)}}}>
+  <div className="layerClip">{rendered.type==="text"?<TextContent layer={rendered}/>:<ImageContent layer={rendered}/>}</div>
+  {handles.map(h=><div key={h} className={`handle ${h}`} data-handle={h} onPointerDown={e=>down(e,h)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}/>)}
+  {editing&&rendered.type==="text"&&<textarea autoFocus className="textEdit" value={rendered.text} onPointerDown={e=>e.stopPropagation()} onChange={e=>{if(!editCheckpoint.current){api.checkpoint();editCheckpoint.current=true}api.updateLayerLive(rendered.id,{text:e.target.value,name:e.target.value})}} onBlur={()=>setEditing(false)} onKeyDown={e=>{if(e.key==="Escape"||(e.key==="Enter"&&(e.ctrlKey||e.metaKey)))setEditing(false)}}/>}
+ </div>;
 }
 
-function StageLayer({ layer, selected, api }: { layer: Layer; selected: boolean; api: EditorApi }) {
-  const pointerDown = (event: ReactPointerEvent<HTMLElement>) => {
-    if (layer.locked) return;
-    event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.dataset.px = String(event.clientX);
-    event.currentTarget.dataset.py = String(event.clientY);
-  };
-  const pointerMove = (event: ReactPointerEvent<HTMLElement>) => {
-    const element = event.currentTarget;
-    if (!element.hasPointerCapture(event.pointerId)) return;
-    const px = Number(element.dataset.px);
-    const py = Number(element.dataset.py);
-    if (!Number.isFinite(px) || !Number.isFinite(py)) return;
-    const delta = stageDelta(event, px, py);
-    api.updateLayer(layer.id, { x: clamp(layer.x + delta.x, 0, 100), y: clamp(layer.y + delta.y, 0, 100) });
-    element.dataset.px = String(event.clientX);
-    element.dataset.py = String(event.clientY);
-  };
-  const resizeDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.dataset.px = String(event.clientX);
-    event.currentTarget.dataset.py = String(event.clientY);
-  };
-  const resizeMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const element = event.currentTarget;
-    if (!element.hasPointerCapture(event.pointerId)) return;
-    const px = Number(element.dataset.px);
-    const py = Number(element.dataset.py);
-    const delta = stageDelta(event, px, py);
-    api.updateLayer(layer.id, { w: clamp(layer.w + delta.x, 1, 100), h: clamp(layer.h + delta.y, 1, 100) });
-    element.dataset.px = String(event.clientX);
-    element.dataset.py = String(event.clientY);
-  };
+export function TextContent({layer}:{layer:TextLayer}){const animated=!["none","breatheText"].includes(layer.textAnimation);let i=0;const boxStyle=layer.boxEnabled?{backgroundColor:`color-mix(in srgb, ${layer.boxColor} ${layer.boxOpacity}%, transparent)`,borderRadius:layer.boxRadius,padding:layer.boxPad}:undefined;return <div style={boxStyle}><div className={`layerText ${layer.effect} ${layer.textAnimation} ${layer.textShimmer?"textShimmer":""}`} style={{fontSize:layer.fontSize,WebkitTextStroke:`${layer.stroke}px black`,"--textColor":layer.color,"--gradient1":layer.gradient1,"--gradient2":layer.gradient2,"--gradientAngle":`${layer.gradientAngle}deg`} as CSSProperties}>{animated?layer.text.split("\n").map((line,n)=><span className="flowLine" key={n}>{Array.from(line).map(ch=><span className="flowChar" style={{"--i":i++} as CSSProperties} key={i}>{ch===" "?"\u00a0":ch}</span>)}</span>):layer.text}</div></div>}
+function Particles({type,speed}:{type:string;speed:number}){if(type==="none")return null;const count=type==="lightning"?8:type==="confetti"?18:14,colors=["#ff3131","#ffbd59","#57fff4","#7ed957","#cb6ce6","#ffffff"],classes:Record<string,string>={sparkle:"particleSparkles",sparkles:"particleSparkles",stars:"particleStars",embers:"particleEmbers",confetti:"particleConfetti",lightning:"particleLightning",snow:"particleSnow"};return <div className={`particleLayer ${classes[type]??"particleSparkles"}`} style={{"--particleSpeed":`${speed}s`} as CSSProperties}>{Array.from({length:count},(_,i)=><span key={i} style={{"--px":`${8+(i*37)%86}%`,"--py":`${6+(i*53)%88}%`,"--ps":`${type==="embers"?8+(i%5)*2:12+(i%6)*3}px`,"--pd":`${(i*.17).toFixed(2)}s`,"--pdur":`${(1.5+(i%5)*.35).toFixed(2)}s`,"--pc":colors[i%colors.length]} as CSSProperties}/>)}</div>}
+export function ImageContent({layer}:{layer:ImageLayer}){const safeId=layer.id.replace(/[^a-zA-Z0-9_-]/g,"");const filterId=`img-outline-${safeId}`;const hasOutline=layer.outline>0;const hasGlow=layer.glow>0;const cssFilter=hasGlow?`url(#${filterId}) drop-shadow(0 0 ${layer.glow}px ${layer.glowColor})`:hasOutline?`url(#${filterId})`:undefined;return <><svg aria-hidden="true" width="0" height="0" style={{position:"absolute"}}><defs><filter id={filterId} x="-100%" y="-100%" width="300%" height="300%" colorInterpolationFilters="sRGB" primitiveUnits="userSpaceOnUse"><feMorphology in="SourceAlpha" operator="dilate" radius={Math.max(0,layer.outline)} result="dilated"/><feFlood floodColor={layer.outlineColor} result="outlineColor"/><feComposite in="outlineColor" in2="dilated" operator="in" result="outline"/><feMerge><feMergeNode in="outline"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs></svg><div className="layerMotion"><img className="layerImg" draggable={false} alt={layer.name} src={layer.imageUrl} style={{width:`${layer.imageWidth/layer.w*100}%`,height:`${layer.imageHeight/layer.h*100}%`,transform:`translate(${layer.cropX}px,${layer.cropY}px) scale(${layer.cropZoom/100})`,filter:cssFilter}}/>{layer.burstEffect!=="none"&&<div className="imageBurstFX"/>}</div><Particles type={layer.particle} speed={layer.particleSpeed}/></>}
 
-  const style = { left: `${layer.x}%`, top: `${layer.y}%`, width: `${layer.w}%`, height: `${layer.h}%`, opacity: layer.opacity / 100, ...animationStyle(layer.animation) };
-  return <div className={`stage-layer ${selected ? "selected" : ""}`} style={style} onClick={(event) => { event.stopPropagation(); api.selectLayer(layer.id); }} onPointerDown={pointerDown} onPointerMove={pointerMove}>
-    <div className={animationClass(layer.animation)}>
-      {layer.type === "text"
-        ? <div aria-label={layer.text} className={`text-content effect-${layer.effect}`} style={{ fontSize: layer.fontSize, color: layer.color, "--gradient-one": layer.gradient1, "--gradient-two": layer.gradient2, "--gradient-angle": `${layer.gradientAngle}deg`, WebkitTextStroke: `${layer.stroke}px #000` } as React.CSSProperties}>{renderTextCharacters(layer.text, ["wave", "bounce-wave"].includes(layer.animation.type))}</div>
-        : <div className="image-clip" style={{ outline: layer.outline ? `${layer.outline}px solid ${layer.outlineColor}` : undefined }}><img draggable={false} alt={layer.name} src={layer.imageUrl} style={{ objectFit: layer.fit, transform: `translate(${layer.cropX}%,${layer.cropY}%) scale(${layer.cropZoom / 100})`, filter: `drop-shadow(0 0 ${layer.glow}px ${layer.glowColor})` }} /></div>}
-    </div>
-    {selected && !layer.locked && <button type="button" aria-label={`Resize ${layer.name}`} className="resize-handle" onPointerDown={resizeDown} onPointerMove={resizeMove} />}
-  </div>;
-}
-
-export function CanvasStage({ slide, settings, selected, api }: { slide: Slide; settings: EditorSettings; selected: string | null; api: EditorApi }) {
-  return <main className="canvas-area"><StageViewport preview={settings.preview}><div className={`slide-content entrance-${slide.entranceAnimation}`} onClick={() => api.selectLayer(null)}>{settings.showCenter && <div className="center-guides" />}{settings.showSafe && <div className="safe-guide" />}{slide.layers.map((layer) => <StageLayer key={layer.id} layer={layer} selected={layer.id === selected} api={api} />)}</div></StageViewport></main>;
-}
+export function CanvasStage({slide,settings,selected,api,fading=false,onInteractionChange=ignoreInteraction}:{slide:Slide;settings:EditorSettings;selected:string|null;api:EditorApi;fading?:boolean;onInteractionChange?:(active:boolean)=>void}){return <main id="canvasArea" className={settings.preview}><StageViewport preview={settings.preview}><div id="overlayContent" className={settings.theme} style={{opacity:fading?0:1}}><div id="animWrap" className={slide.entranceAnimation} onPointerDown={e=>{if(e.target===e.currentTarget)api.selectLayer(null)}}>{settings.showCenter&&<div id="guideCenter"/>}{settings.showSafe&&<div id="guideSafe"/>}<div id="snapGuide"/>{slide.layers.map(l=><StageLayer key={l.id} layer={l} selected={l.id===selected} api={api} onInteractionChange={onInteractionChange}/>)}</div></div></StageViewport></main>}
