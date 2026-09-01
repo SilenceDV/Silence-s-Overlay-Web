@@ -83,3 +83,15 @@ it("uses a new coordinator when the project id changes", async () => {
   expect(fetchMock).toHaveBeenCalledOnce();
   expect(fetchMock).toHaveBeenCalledWith("/api/projects/project-2", expect.any(Object));
 });
+
+it("does not start autosave while a pointer interaction is active", async () => {
+  vi.useFakeTimers();
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({version:2}),{status:200}));
+  const project=defaultProject();
+  const {rerender}=renderHook(({paused})=>useAutosave(project,true,"project-1",1,vi.fn(),vi.fn(),vi.fn(),paused),{initialProps:{paused:true}});
+  await act(async()=>{await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY*2)});
+  expect(fetchMock).not.toHaveBeenCalled();
+  rerender({paused:false});
+  await act(async()=>{await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY)});
+  expect(fetchMock).toHaveBeenCalledOnce();
+});

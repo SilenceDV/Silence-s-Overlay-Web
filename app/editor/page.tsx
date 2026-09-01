@@ -1,2 +1,21 @@
-import {redirect} from "next/navigation";import {OverlayEditor} from "@/components/editor/OverlayEditor";import {requireUser} from "@/lib/auth/server";import {createSupabaseAdminClient} from "@/lib/supabase/server";import {getEntitlements} from "@/lib/billing/entitlements";import {projectSchema} from "@/lib/validation/projectSchemas";import {normalizeProjectId} from "@/lib/projects/projectIds";
-export default async function EditorPage({searchParams}:{searchParams:Promise<{id?:string}>}){const user=await requireUser(),query=await searchParams;if(!query.id)redirect("/dashboard");let id:string;try{id=normalizeProjectId(query.id)}catch{redirect("/dashboard")}const [{data},e]=await Promise.all([createSupabaseAdminClient().from("projects").select("data,version").eq("id",id).eq("owner_id",user.id).maybeSingle(),getEntitlements(user.id)]);if(!data)redirect("/dashboard");const project=projectSchema.parse(data.data);project.id=id;return <OverlayEditor initialProject={project} projectId={id} version={data.version} proAccess={e.proAccess}/>}
+import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth/server";
+import { normalizeProjectId } from "@/lib/projects/projectIds";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
+
+const frameStyle = { position: "fixed", inset: 0, width: "100vw", height: "100vh", border: 0, background: "transparent" } as const;
+
+export default async function EditorPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
+  if (process.env.NODE_ENV === "development" && process.env.PARITY_HARNESS === "1") {
+    return <iframe title="Silence's Overlay Maker" src="/legacy-overlay?editor=parity" style={frameStyle} />;
+  }
+
+  const user = await requireUser();
+  const { id: rawId } = await searchParams;
+  if (!rawId) redirect("/dashboard");
+  let id: string;
+  try { id = normalizeProjectId(rawId); } catch { redirect("/dashboard"); }
+  const { data } = await createSupabaseAdminClient().from("projects").select("id").eq("id", id).eq("owner_id", user.id).maybeSingle();
+  if (!data) redirect("/dashboard");
+  return <iframe title="Silence's Overlay Maker" src={`/legacy-overlay?editorProjectId=${encodeURIComponent(id)}`} style={frameStyle} />;
+}
