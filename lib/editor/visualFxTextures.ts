@@ -90,7 +90,7 @@ export function prepareFX(scene:FXScene) {
   const probe=document.createElement("canvas").getContext("2d")!;
   probe.fillStyle="#ffffff";probe.fillStyle=scene.primary;const primary=probe.fillStyle;
   probe.fillStyle="#ff862e";probe.fillStyle=scene.secondary;const secondary=probe.fillStyle;
-  const volume=scene.effect==="fxImpact"||scene.effect==="fxSmoke";
+  const volume=scene.particles.some(p=>p.kind==="blast"||p.kind==="smoke");
   scene.textures={colors:[primary,secondary],light:[light(primary),light(secondary)],
     smoke:volume?[0,1].map(c=>[0,1,2].map(v=>tintedCloud(c?secondary:primary,v,scene.effect==="fxImpact"))):[],
     flame:scene.effect==="fxFireBurst"?[[0,1,2].map(v=>flame(primary,secondary,v))]:[],

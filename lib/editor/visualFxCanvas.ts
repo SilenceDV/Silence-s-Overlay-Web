@@ -18,13 +18,19 @@ function light(ctx:CanvasRenderingContext2D,texture:HTMLCanvasElement,x:number,y
 }
 function spark(ctx:CanvasRenderingContext2D,scene:FXScene,p:Particle,x:number,y:number,age:number,alpha:number) {
   const textures=scene.textures!,size=p.size*(p.front?1:1.5);
-  const tailAge=Math.max(0,age-p.trail),tx=particleX(p,tailAge),ty=particleY(p,tailAge);
-  const length=Math.max(size*2,Math.min(180*scene.size,Math.hypot(x-tx,y-ty)));
-  ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(y-ty,x-tx));
-  // A soft textured, tapered streak: narrow hot center and low-contrast colored halo.
-  ctx.globalAlpha=clamp(alpha*(p.front?1:.48));
-  ctx.drawImage(textures.streak[p.secondary?1:0],-length,-size*3.2,length+size,size*6.4);
-  ctx.restore();
+  const tailAge=Math.max(0,age-p.trail),segments=p.trail>.035?5:1;
+  const texture=textures.streak[p.secondary?1:0];
+  // Sample the actual drag/gravity/sway trajectory, preserving the taper along it.
+  let tx=particleX(p,tailAge),ty=particleY(p,tailAge);
+  for(let i=0;i<segments;i++){
+    const next=tailAge+(age-tailAge)*(i+1)/segments,nx=particleX(p,next),ny=particleY(p,next);
+    const length=Math.hypot(nx-tx,ny-ty);
+    ctx.save();ctx.translate(tx,ty);ctx.rotate(Math.atan2(ny-ty,nx-tx));
+    ctx.globalAlpha=clamp(alpha*(p.front?1:.48));
+    ctx.drawImage(texture,i*texture.width/segments,0,texture.width/segments,texture.height,
+      0,-size*3.2,Math.max(.5,length+.5),size*6.4);
+    ctx.restore();tx=nx;ty=ny;
+  }
   light(ctx,textures.light[1],x,y,size*(p.front?5:8),alpha*(p.front?.32:.12));
   if(p.front){ctx.globalAlpha=clamp(alpha);ctx.fillStyle=textures.colors[0];ctx.beginPath();ctx.arc(x,y,Math.max(.65,size*.43),0,TAU);ctx.fill();}
 }
@@ -69,6 +75,21 @@ function electricity(ctx:CanvasRenderingContext2D,scene:FXScene,arc:Arc,time:num
   }
 }
 
+function pressureWave(ctx:CanvasRenderingContext2D,scene:FXScene,time:number) {
+  const start=scene.shockwaveOnly?.02:.05,span=scene.shockwaveOnly?.85:.45;
+  const t=(time-start)/span;if(t<=0||t>=1)return;
+  const expansion=1-Math.exp(-t*3),alpha=Math.sin(t*Math.PI)*(1-t)*scene.opacity*(scene.shockwaveOnly?.7:.18);
+  const rx=scene.width*(.47+expansion*.48)*scene.size,ry=scene.height*(.49+expansion*.5)*scene.size;
+  const phase=scene.origins[0].nx*13;
+  ctx.beginPath();
+  for(let i=0;i<=80;i++){const angle=i/80*TAU,warp=1+.025*Math.sin(angle*5+phase)+.015*Math.sin(angle*9-phase);
+    const x=Math.cos(angle)*rx*warp,y=Math.sin(angle)*ry*warp;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle=scene.textures!.colors[1];ctx.globalAlpha=alpha*.18;ctx.lineWidth=16*scene.size;ctx.stroke();
+  ctx.globalAlpha=alpha*.5;ctx.lineWidth=5*scene.size;ctx.stroke();
+  ctx.strokeStyle=scene.textures!.colors[0];ctx.globalAlpha=alpha;ctx.lineWidth=1.5*scene.size;ctx.stroke();
+}
+
 /** No allocations of particle/path arrays or React updates during drawing. */
 export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,front:boolean) {
   const {width,height,padding,opacity,effect}=scene,cw=width+padding*2,ch=height+padding*2;
@@ -78,16 +99,22 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
   const textures=scene.textures!,primary=textures.colors[0],secondary=textures.colors[1];
   ctx.save();ctx.translate(cw/2,ch/2);ctx.globalCompositeOperation="lighter";
   if(!front&&effect==="fxImpact"){
-    const hit=Math.exp(-time*32),expansion=1-Math.exp(-time*12);
-    light(ctx,textures.light[1],scene.originX,scene.originY,Math.max(width,height)*(.5+expansion*.35),Math.pow(1-time,3)*opacity*.62,.8);
-    light(ctx,textures.light[0],scene.originX,scene.originY,Math.max(width,height)*.75,hit*opacity);
+    pressureWave(ctx,scene,time);
+    if(!scene.shockwaveOnly){
+      const hit=smooth(0,.015,time)*(1-smooth(.035,.13,time));
+      const expansion=1-Math.exp(-time*12),radius=Math.min(width,height)*(.3+expansion*.32)*scene.size;
+      for(const o of scene.origins){
+        light(ctx,textures.light[1],o.x,o.y,radius,smooth(0,.015,time)*Math.pow(1-time,3)*opacity*.19,.85);
+        light(ctx,textures.light[0],o.x,o.y,radius*.5,hit*opacity*.42);
+      }
+    }
   }else if(!front&&effect==="fxFireBurst"){
     const heat=smooth(0,.075,time)*(1-smooth(.35,.95,time));
-    light(ctx,textures.light[1],0,height*.05,Math.max(width,height)*.7,heat*opacity*.5,.8);
-    light(ctx,textures.light[0],0,height*.12,Math.max(width,height)*.47,heat*opacity*.65,.7);
+    light(ctx,textures.light[1],0,height*.25,Math.max(width,height)*.65,heat*opacity*.38,.7);
+    light(ctx,textures.light[0],0,height*.33,Math.max(width,height)*.38,heat*opacity*.42,.6);
   }else if(effect==="fxSpark"){
-    const flare=Math.exp(-time*18)*opacity;
-    light(ctx,textures.light[1],scene.originX-width*.1,scene.originY,front?28*scene.size:width*.35,flare*(front?.8:.3));
+    const flare=smooth(0,.015,time)*Math.exp(-time*18)*opacity;
+    for(const o of scene.origins)light(ctx,textures.light[1],o.x,o.y,front?18*scene.size:Math.min(width,height)*.18,flare*(front?.45:.18));
   }
   for(const p of scene.particles){
     if(p.front!==front)continue;
@@ -100,9 +127,9 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
     else if(p.kind==="blast"){
       const expansion=1-Math.exp(-t*8),r=p.size*(.35+expansion*1.7),heat=1-smooth(.12,.6,t);
       ctx.translate(x,y);ctx.rotate(p.rotation+age*.35);
-      light(ctx,textures.light[1],0,0,r*1.1,alpha*heat*.38,.85);
-      light(ctx,textures.smoke[1][p.variant],0,0,r,alpha*heat*.8,.85+p.phase*.04);
-      light(ctx,textures.smoke[0][p.variant],-r*.05,-r*.09,r*.76,alpha*heat*.5,.82);
+      light(ctx,textures.light[1],0,0,r*1.1,alpha*heat*.22,.85);
+      light(ctx,textures.smoke[1][p.variant],0,0,r,alpha*heat*.28,.85+p.phase*.04);
+      light(ctx,textures.smoke[0][p.variant],-r*.05,-r*.09,r*.76,alpha*heat*.2,.82);
       ctx.globalCompositeOperation="source-over";
       light(ctx,textures.smoke[1][p.variant],0,-r*.08,r*1.1,alpha*(1-heat)*.25,.9);
     }else if(p.kind==="smoke"){

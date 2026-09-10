@@ -1,3 +1,4 @@
+import { createEmitters, type FXOrigin } from "./visualFxEmitters";
 import type { ImageLayer } from "@/types/editor";
 import { particleEffect, type ParticleEffect } from "./visualFx";
 
@@ -12,7 +13,7 @@ export interface Particle {
   kind: ParticleKind; front: boolean; x: number; y: number; vx: number; vy: number;
   size: number; depth: number; delay: number; life: number; rotation: number; spin: number;
   phase: number; gravity: number; drag: number; sway: number; brightness: number; trail: number;
-  secondary: boolean; variant: number; shape: Float32Array;
+  secondary: boolean; variant: number; originIndex:number; shape: Float32Array;
 }
 export interface Arc {
   frames: Float32Array[]; branches: Float32Array[][];
@@ -25,7 +26,7 @@ export interface FXTextures {
 export interface FXScene {
   textures?: FXTextures; effect: ParticleEffect; particles: Particle[]; arcs: Arc[];
   width: number; height: number; padding: number; primary: string; secondary: string;
-  size: number; opacity: number; intensity: number; originX: number; originY: number;
+  size: number; opacity: number; intensity: number; originX: number; originY: number; origins:FXOrigin[]; shockwaveOnly:boolean;
 }
 // Time is measured in fractions of the whole effect, not each particle's lifetime.
 // This is the analytic solution of dv/dt = acceleration - drag * velocity.
@@ -51,16 +52,17 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
   const width = Math.max(1, layer.w * 19.2), height = Math.max(1, layer.h * 10.8);
   const unit = Math.max(100, Math.min(480, Math.min(width, height)));
   const force = (unit * .85 + 160) * spread;
+  const emitters=createEmitters(width,height,r);
   const scene: FXScene = {effect, particles:[], arcs:[], width, height, padding:0, size, intensity,
     primary:layer.fxPrimaryColor, secondary:layer.fxSecondaryColor, opacity:layer.fxOpacity / 100,
-    originX:width * range(-.08,.04), originY:height * range(-.02,.1)};
+    originX:0, originY:0, origins:emitters.origins,shockwaveOnly:layer.burstEffect==="fxShockwave"};
   const count = (n: number) => Math.round(n * intensity);
   const add = (kind: ParticleKind, front: boolean, values: Partial<Particle>) => {
     const p: Particle = {kind,front,x:0,y:0,vx:0,vy:0,size:range(2,5)*size,
       depth:front?range(.8,1.25):range(.45,.75),delay:range(0,.08),life:range(.6,.88),
       rotation:range(0,TAU),spin:range(-10,10),phase:range(0,TAU),gravity:160,drag:range(1,3),
       sway:0,brightness:range(.7,1.3),trail:range(.025,.12),secondary:r()<.6,variant:Math.floor(r()*3),
-      shape:new Float32Array(0),...values};
+      originIndex:0,shape:new Float32Array(0),...values};
     p.life = Math.min(p.life, 1 - p.delay);
     if (kind === "shard" || kind === "debris") {
       p.shape = new Float32Array(10);
@@ -69,71 +71,80 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
     scene.particles.push(p);
   };
 
-  if (effect === "fxImpact") {
-    // Local detonation: overlapping rear pressure lobes, then two asymmetric ejecta fans.
-    for (let i=0;i<count(11);i++) {
-      const angle=range(0,TAU), speed=range(.4,1.1)*force;
-      add("blast",false,{x:scene.originX+bell()*width*.16,y:scene.originY+bell()*height*.15,
-        vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed*.7-50,drag:range(5,9),gravity:-35,
-        size:unit*range(.24,.43)*size,delay:range(.015,.065),life:range(.65,.9),sway:range(5,18)});
+  if (scene.shockwaveOnly) {
+    for(let i=0;i<count(12);i++){const o=emitters.sample("perimeter",i);add("mote",false,{x:o.x,y:o.y,vx:o.nx*force*.3,vy:o.ny*force*.3,gravity:0,size:range(1,3)*size,delay:range(.03,.18),life:range(.4,.75)})}
+  } else if (effect === "fxImpact") {
+    // A distributed rupture: several independent pressure pockets ignite across the gift.
+    for (let i=0;i<count(14);i++) {
+      const o=emitters.sample(i%2===0?"perimeter":"multiPoint",i%2===0?Math.floor(i/2):i);
+      const angle=Math.atan2(o.ny,o.nx)+range(-.7,.7),speed=range(.3,.8)*force;
+      add("blast",false,{x:o.x,y:o.y,originIndex:o.index,
+        vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed*.65-35,drag:range(5,9),gravity:-35,
+        size:unit*range(.3,.5)*size,delay:range(.015,.065),life:range(.65,.9),sway:range(8,22)});
     }
     for (let i=0;i<count(26);i++) {
-      const angle=r()<.64?-.65+bell()*1.25:2.7+bell()*1.1, speed=force*range(1.2,2.8);
-      add("spark",i%5!==0,{x:scene.originX+bell()*width*.17,y:scene.originY+bell()*height*.12,
+      const o=emitters.sample("multiPoint",i),cross=i%3===0;
+      const angle=Math.atan2(cross?-o.ny:o.ny,cross?-o.nx:o.nx)+bell()*1.1,speed=force*range(1.1,2.5);
+      add("spark",i%5!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,drag:range(2.2,5),gravity:range(140,300),
-        delay:range(.065,.16),life:range(.35,.7),size:range(1.4,3.6)*size,trail:range(.035,.12)});
+        delay:range(.065,.16),life:range(.35,.7),size:range(2,4.5)*size,trail:range(.035,.12),sway:range(5,20)});
     }
     for (let i=0;i<count(14);i++) {
-      add("spark",i%4!==0,{x:scene.originX+bell()*width*.23,y:scene.originY+bell()*height*.22,
+      const o=emitters.sample(i%3===0?"fullArea":"surface",i);
+      add("spark",i%4!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:bell()*force*.9,vy:range(-.6,.3)*force,gravity:range(100,260),drag:range(2,4),
-        delay:range(.2,.4),life:range(.25,.56),size:range(.6,1.5)*size,trail:range(.012,.035)});
+        delay:range(.2,.4),life:range(.25,.56),size:range(.8,1.8)*size,trail:range(.012,.035)});
     }
     for (let i=0;i<count(5);i++) {
-      const angle=range(0,TAU);
-      add("debris",true,{x:scene.originX+bell()*width*.18,y:scene.originY+bell()*height*.12,
+      const o=emitters.sample("multiPoint",i),angle=Math.atan2(o.ny,o.nx)+range(-.8,.8);
+      add("debris",true,{x:o.x,y:o.y,originIndex:o.index,
         vx:Math.cos(angle)*force*range(.8,1.6),vy:Math.sin(angle)*force-80,drag:range(1,2),gravity:380,
-        delay:range(.08,.16),life:range(.55,.8),size:range(7,15)*size});
+        delay:range(.08,.16),life:range(.55,.8),size:range(10,21)*size});
     }
   } else if (effect === "fxSpark") {
-    // A metal-contact spray, with correlated jets and a delayed fine spray. Never a circular array.
+    // Independent surface contacts throw crossing jets; softer edge contacts spray outward.
     for (let i=0;i<count(30);i++) {
-      const jet=r(), front=i%5!==0;
-      const angle=jet<.65?-.55+bell()*.85:jet<.87?-2.4+bell()*.6:.7+bell()*.8;
-      const speed=force*range(1.3,3.2);
-      add("spark",front,{x:scene.originX-width*.1+bell()*width*.09,y:scene.originY+bell()*height*.08,
+      const front=i%5!==0,o=emitters.sample(front?"multiPoint":"perimeter",front?i:Math.floor(i/5));
+      const inward=front&&i%4!==0,angle=Math.atan2(inward?-o.ny:o.ny,inward?-o.nx:o.nx)+bell()*.95;
+      const speed=force*range(1.3,2.8);
+      add("spark",front,{x:o.x,y:o.y,originIndex:o.index,
         vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,drag:range(1.4,4.5),gravity:range(130,340),
-        delay:range(.015,.16),life:range(.3,.78),size:range(1.3,3.1)*size,
-        brightness:range(.8,1.6),trail:range(.025,.115)});
+        delay:range(.015,.1)+o.index*.008,life:range(.3,.78),size:range(2,4.3)*size,
+        brightness:range(.8,1.6),trail:range(.035,.13),sway:range(10,30)});
     }
     for (let i=0;i<count(18);i++) {
-      add("spark",i%4!==0,{x:scene.originX+bell()*width*.16,y:scene.originY+bell()*height*.12,
-        vx:range(-.5,1.3)*force,vy:range(-1.1,.2)*force,drag:range(2,5),gravity:range(80,200),
-        delay:range(.13,.36),life:range(.2,.6),size:range(.6,1.25)*size,trail:range(.009,.035)});
+      const o=emitters.sample("surface",i);
+      add("spark",i%4!==0,{x:o.x,y:o.y,originIndex:o.index,
+        vx:range(-.8,1.1)*force,vy:range(-1.1,.3)*force,drag:range(2,5),gravity:range(80,200),
+        delay:range(.13,.36),life:range(.2,.6),size:range(.8,1.6)*size,trail:range(.009,.035),sway:range(2,9)});
     }
   } else if (effect === "fxFireBurst") {
     for (let i=0;i<count(23);i++) {
-      const side=i%3===0;
-      add("flame",false,{x:side?(r()<.5?-1:1)*width*range(.3,.48):bell()*width*.33,
-        y:height*range(.06,.34),vx:bell()*force*.14,vy:-(height*.65+180)*range(.9,1.5)*spread,
+      const o=emitters.sample("bottomEdge",i);
+      if(i%5===0){o.x=-width*range(.39,.49);o.y=height*range(.13,.3)}
+      if(i%5===1){o.x=width*range(.39,.49);o.y=height*range(.13,.3)}
+      add("flame",false,{x:o.x,y:o.y,originIndex:o.index,vx:bell()*force*.14,vy:-(height*.65+180)*range(.9,1.5)*spread,
         gravity:-90,drag:range(.55,1.1),sway:range(9,25),size:unit*range(.26,.43)*size,
         delay:range(0,.16),life:range(.67,.84),rotation:range(-.2,.2)});
     }
     for (let i=0;i<count(21);i++) {
-      add("spark",i%3!==0,{x:bell()*width*.42,y:height*range(.03,.34),
+      const o=emitters.sample("bottomEdge",i);
+      add("spark",i%3!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:bell()*force*.35,vy:-force*range(.6,1.5),gravity:-45,drag:range(.6,1.8),
         delay:range(.1,.4),life:range(.35,.59),size:range(.7,1.8)*size,trail:range(.009,.03),sway:range(1,6)});
     }
   } else if (effect === "fxSmoke") {
     for (let i=0;i<count(28);i++) {
-      const front=i%4===0;
-      add("smoke",front,{x:(r()<.5?-.23:.23)*width+bell()*width*.25,y:bell()*height*.3+height*.12,
+      const front=i%4===0,o=emitters.sample(front?"multiPoint":"perimeter",front?i:Math.floor(i/2));
+      add("smoke",front,{x:o.x,y:o.y,originIndex:o.index,
         vx:bell()*force*.32,vy:range(-100,-45)*spread,gravity:-55,drag:range(.8,1.8),sway:range(12,35),
         size:unit*range(.24,.43)*size,delay:range(0,.15),life:range(.75,.85),brightness:front?.45:.9});
     }
   } else if (effect === "fxIceShatter") {
     for (let i=0;i<count(26);i++) {
       const angle=range(0,TAU),speed=force*range(.55,1.6);
-      add("shard",i%7!==0,{x:bell()*width*.32,y:bell()*height*.35,
+      const o=emitters.sample("multiPoint",i);
+      add("shard",i%7!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-90,gravity:200,drag:range(.7,2),
         size:range(9,25)*size,delay:range(.02,.11),life:range(.65,.86)});
     }
@@ -141,13 +152,15 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
       vx:bell()*force,vy:bell()*force*.7,gravity:140,drag:1.4,size:range(1.5,4)*size,life:range(.35,.75)});
   } else if (effect === "fxMagic") {
     for (let i=0;i<count(36);i++) {
-      add(i%3===0?"glint":"mote",i%4!==0,{x:bell()*width*.48,y:bell()*height*.49,
+      const o=emitters.sample(i%3===0?"fullArea":"surface",i);
+      add(i%3===0?"glint":"mote",i%4!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:range(-30,55)*spread,vy:range(-85,-30)*spread,gravity:-15,drag:range(.4,1.1),sway:range(10,40),
         size:(i%3===0?range(5,12):range(1,4))*size,delay:range(.01,.47),life:range(.32,.53)});
     }
   } else if (effect === "fxConfetti") {
     for (let i=0;i<count(44);i++) {
-      add("confetti",i%3!==0,{x:bell()*width*.23,y:height*range(-.1,.25),
+      const o=emitters.sample(i%3===0?"bottomEdge":"multiPoint",i);
+      add("confetti",i%3!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:bell()*force*2,vy:-force*range(.5,1.7),gravity:1100,drag:range(.5,1.1),sway:range(10,35),
         size:range(5,12)*size,secondary:r()<.25,delay:range(0,.13),life:range(.74,.87),spin:range(-16,16)});
     }
@@ -162,10 +175,15 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
     };
     for(let i=0;i<count(12);i++) {
       const front=i%6!==5;
-      const direction=r()<.5?-1:1;
-      let sx=-width*range(.31,.46),sy=height*range(-.4,-.15)*direction;
-      let ex=width*range(.31,.46),ey=height*range(.12,.4)*direction;
-      if(!front){sx=-width*.53;ex=width*.53;sy=-height*.48;ey=-height*.55;}
+      let sx=0,sy=0,ex=0,ey=0;
+      switch(i%4){
+        case 0:sx=-width*.45;sy=-height*.32;ex=width*.43;ey=height*.12;break;
+        case 1:sx=-width*.48;sy=height*.08;ex=width*.46;ey=-height*.08;break;
+        case 2:sx=-width*.06;sy=-height*.48;ex=width*.1;ey=height*.42;break;
+        default:sx=width*.43;sy=-height*.36;ex=-width*.4;ey=height*.39;
+      }
+      sx+=bell()*width*.06;sy+=bell()*height*.06;ex+=bell()*width*.06;ey+=bell()*height*.06;
+      if(!front){const a=emitters.sample("perimeter",Math.floor(i/6)),b=emitters.sample("perimeter",Math.floor(i/6)+1);sx=a.x;sy=a.y;ex=b.x;ey=b.y;}
       const frames:Float32Array[]=[],branches:Float32Array[][]=[];
       for(let frame=0;frame<7;frame++) {
         const path=makePath(sx,sy,ex,ey,unit*.24);frames.push(path);
@@ -178,7 +196,7 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
     for(let i=0;i<count(12);i++)add("mote",i%4!==0,{x:bell()*width*.43,y:bell()*height*.4,vx:bell()*65,vy:bell()*65,gravity:0,drag:2,size:range(1,3)*size,delay:range(.02,.55),life:range(.12,.32)});
   }
   // Analytic conservative travel bounds, not PNG alpha/crop bounds. No particle canvas edge cuts.
-  let reach=120;
+  let reach=effect==="fxImpact"?Math.max(width,height)*.55*size:120;
   for(const p of scene.particles){const age=p.life;
     const dx=Math.abs(displacement(p.vx,0,p.drag,age))+p.sway*2;
     const dy=Math.abs(displacement(p.vy,0,p.drag,age))+Math.abs(displacement(0,p.gravity,p.drag,age));

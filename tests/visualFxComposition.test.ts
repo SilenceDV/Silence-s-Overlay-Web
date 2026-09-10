@@ -30,10 +30,13 @@ describe("effect-specific foreground composition",()=>{
       expect(arc.branches[0]).toHaveLength(2);
     }
   });
-  it("emits an uneven localized spark spray instead of an evenly spaced perimeter ring",()=>{
+  it("emits independent spark sprays across the gift instead of one center or a perimeter wheel",()=>{
     const s=scene("fxSpark"),sparks=s.particles;
-    expect(sparks.filter(p=>Math.abs(p.x)<s.width*.3&&Math.abs(p.y)<s.height*.3).length/sparks.length).toBeGreaterThan(.8);
-    expect(sparks.filter(p=>p.vx>0).length/sparks.length).toBeGreaterThan(.6);
+    expect(Math.max(...sparks.map(p=>p.x))-Math.min(...sparks.map(p=>p.x))).toBeGreaterThan(s.width*.7);
+    expect(Math.max(...sparks.map(p=>p.y))-Math.min(...sparks.map(p=>p.y))).toBeGreaterThan(s.height*.7);
+    expect(new Set(sparks.map(p=>p.originIndex)).size).toBeGreaterThanOrEqual(6);
+    expect(new Set(sparks.map(p=>`${Math.sign(p.vx)}:${Math.sign(p.vy)}`)).size).toBe(4);
+    expect(overlapsBody("fxSpark").length).toBeGreaterThanOrEqual(3);
     expect(new Set(sparks.map(p=>p.trail.toFixed(3))).size).toBeGreaterThan(12);
     expect(new Set(sparks.map(p=>p.life.toFixed(3))).size).toBeGreaterThan(12);
   });

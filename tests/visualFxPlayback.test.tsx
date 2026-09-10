@@ -2,6 +2,7 @@ import React from "react";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { defaultImage } from "@/lib/editor/defaults";
+import { ImageContent } from "@/components/editor/CanvasStage";
 import { VisualFX } from "@/components/editor/VisualFX";
 import { FXReplayProvider } from "@/components/editor/FXReplay";
 import { ImageLayerControls } from "@/components/editor/ImageLayerControls";
@@ -34,7 +35,9 @@ it("Replay FX only restarts the selected preview without changing project data",
   const view = render(<FXReplayProvider><ImageLayerControls layer={first} onChange={onChange} onReplace={vi.fn()}/><VisualFX layer={first} preview/><VisualFX layer={second} preview/><VisualFX layer={first}/></FXReplayProvider>);
   advance(0); advance(1000); vi.mocked(drawFX).mockClear();
   fireEvent.click(view.getByText("Replay FX"));
-  expect(frames.size).toBe(1); advance(1100);
+  expect(frames.size).toBe(1);
+  expect(drawFX).toHaveBeenCalledTimes(2); // Both planes are prepared before paint.
+  vi.mocked(drawFX).mockClear();advance(1100);
   expect(drawFX).toHaveBeenCalledTimes(2);
   expect(onChange).not.toHaveBeenCalled(); expect(JSON.stringify(first)).toBe(before);
 });
@@ -55,4 +58,27 @@ it("stops promptly when the tab becomes hidden", () => {
   render(<VisualFX layer={image()}/>); expect(frames.size).toBe(1);
   vi.spyOn(document, "hidden", "get").mockReturnValue(true);
   fireEvent(document, new Event("visibilitychange")); expect(frames.size).toBe(0);
+});
+
+it("retains both canvases and the PNG through the requested effect switching sequence", () => {
+  const layer=image();
+  const content=(effect: typeof layer.burstEffect | "none" | "fxElectric" | "fxFireBurst" | "fxSpark") => <><ImageContent layer={{...layer,imageUrl:"fixture.png",name:"Gift"}}/><VisualFX layer={{...layer,burstEffect:effect}}/></>;
+  const view=render(content("none")),canvases=Array.from(view.container.querySelectorAll("canvas")),png=view.getByAltText("Gift");
+  expect(canvases).toHaveLength(2);
+  for(const effect of ["fxElectric","fxFireBurst","fxSpark","fxImpact","none"] as const){
+    vi.mocked(drawFX).mockClear();view.rerender(content(effect));
+    expect(Array.from(view.container.querySelectorAll("canvas"))).toEqual(canvases);
+    expect(view.getByAltText("Gift")).toBe(png);
+    if(effect==="none") {expect(frames.size).toBe(0);expect(canvases.every(c=>c.hidden&&c.width===1&&c.height===1)).toBe(true)}
+    else {expect(frames.size).toBe(1);expect(drawFX).toHaveBeenCalledTimes(2);expect(vi.mocked(drawFX).mock.calls.every(call=>call[2]===0)).toBe(true)}
+  }
+});
+it("does not reset backing dimensions for color, opacity, speed or replay changes",()=>{
+  const layer=image();let current=layer;
+  const content=()=> <FXReplayProvider><ImageLayerControls layer={current} onChange={vi.fn()} onReplace={vi.fn()}/><VisualFX layer={current} preview/></FXReplayProvider>;
+  const view=render(content()),canvas=view.container.querySelector("canvas")!;
+  const width=vi.spyOn(canvas,"width","set"),height=vi.spyOn(canvas,"height","set");
+  for(const patch of [{fxPrimaryColor:"#90ffee"},{fxSecondaryColor:"#ee4400"},{fxOpacity:45},{burstSpeed:1.8}]){current={...current,...patch};view.rerender(content())}
+  fireEvent.click(view.getByText("Replay FX"));
+  expect(width).not.toHaveBeenCalled();expect(height).not.toHaveBeenCalled();
 });
