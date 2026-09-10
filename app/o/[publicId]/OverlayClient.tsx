@@ -20,10 +20,6 @@ export function OverlayClient({project:initialProject,publicId}:{project:Project
   const [project,setProject]=useState(initialProject);
   const [index,setIndex]=useState(0);
 
-  // Keep an already-open TikTok Studio/browser-source overlay synchronized with
-  // editor saves. Supabase Broadcast is the fast path; periodic polling and
-  // reconnect/visibility refreshes make the overlay self-healing if Realtime is
-  // interrupted by TikTok Studio, sleep, or a temporary network problem.
   useEffect(()=>{
     let cancelled=false;
     let refreshing=false;
@@ -52,12 +48,9 @@ export function OverlayClient({project:initialProject,publicId}:{project:Project
       .channel(`overlay:${publicId}`)
       .on("broadcast",{event:"project-updated"},()=>{void refresh();})
       .subscribe(status=>{
-        // If the WebSocket reconnects after missing an event, immediately catch up.
         if(status==="SUBSCRIBED")void refresh();
       });
 
-    // Fallback only. Normal editor updates should arrive through Realtime almost
-    // immediately after the 700ms autosave completes.
     const timer=window.setInterval(()=>{void refresh();},15000);
     const onOnline=()=>{void refresh();};
     const onVisibilityChange=()=>{if(document.visibilityState==="visible")void refresh();};
