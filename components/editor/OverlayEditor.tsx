@@ -6,6 +6,7 @@ import { useEditorState } from "@/hooks/useEditorState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { deserializeProject, serializeLegacyProject } from "@/lib/editor/serialization";
 import { MAX_RAW_IMAGE_BYTES } from "@/lib/validation/projectSchemas";
+import { FXReplayProvider } from "./FXReplay";
 import { CanvasStage } from "./CanvasStage";
 import { EditorSidebar,type ProjectSummary } from "./EditorSidebar";
 import { EditorToolbar } from "./EditorToolbar";
@@ -117,7 +118,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
   const copyUrl=async()=>{try{const url=await getPublishedUrl();await navigator.clipboard.writeText(url);setNotice("Overlay URL copied ✓ Updated version included in link.")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
   const testUrl=async()=>{try{const url=await getPublishedUrl();window.open(url,"_blank","noopener,noreferrer")}catch(error){setNotice(error instanceof Error?error.message:"Publishing failed.")}};
 
-  return <div className={`editor-shell ${overlayOnly?"overlay-editing":""}`}>
+  return <FXReplayProvider><div className={`editor-shell ${overlayOnly?"overlay-editing":""}`}>
     <EditorSidebar state={state} api={limitedApi} projects={projects} onAddImage={(slideId)=>pickImage(false,slideId)} onReplace={() => pickImage(true)} onSave={saveNow} onNew={resetProject} onLoad={(id)=>{location.href=`/editor?id=${id}`}} onDelete={deleteProject} onImport={()=>projectInput.current?.click()} onExport={exportProject} onStart={startRotation} onStop={stopRotation} onCopyUrl={copyUrl} onTestUrl={testUrl}/>
     <section className="editor-workspace">
       <EditorToolbar
@@ -133,5 +134,5 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
     {upgrade&&<div className="modal-backdrop"><section className="card upgrade-modal"><h2>Unlock unlimited slides</h2><p>Free projects support one slide. Pro unlocks unlimited slides, premium animations, and hosted Pro overlays.</p><div className="actions"><a className="button" href="/billing">Upgrade to Pro</a><button onClick={()=>setUpgrade(false)}>Not now</button></div></section></div>}
     <input ref={imageInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { readImage(event.target.files?.[0]); event.target.value = ""; }} />
     <input ref={projectInput} hidden type="file" accept="application/json,.json" onChange={(event) => { importProject(event.target.files?.[0]); event.target.value = ""; }} />
-  </div>;
+  </div></FXReplayProvider>;
 }

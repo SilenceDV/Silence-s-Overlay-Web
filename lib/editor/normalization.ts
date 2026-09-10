@@ -1,5 +1,6 @@
+import { visualEffects, legacyFxAliases } from "./visualFx";
 import { defaultAnimation, defaultImage, defaultProject, defaultSlide, defaultText } from "./defaults";
-import type { AnimationType, EditorSettings, EntranceAnimation, Layer, Project, Slide, VisualEffectType } from "@/types/editor";
+import type { AnimationType, EditorSettings, EntranceAnimation, Layer, Project, Slide } from "@/types/editor";
 import { normalizeProjectIdOrNew } from "@/lib/projects/projectIds";
 
 const num=(v:unknown,f:number)=>typeof v==="number"&&Number.isFinite(v)?v:f;
@@ -7,11 +8,9 @@ const str=(v:unknown,f:string)=>typeof v==="string"?v:f;
 const record=(v:unknown):Record<string,unknown>=>v&&typeof v==="object"?v as Record<string,unknown>:{};
 const oneOf=<T extends string>(v:unknown,values:readonly T[],fallback:T):T=>typeof v==="string"&&values.includes(v as T)?v as T:fallback;
 const animationTypes=["none","wave","bounce-wave","pulse","glow-pulse","jitter","float","wiggle","bounce-loop","hover","shake","orbit","flip","waveLetters","bounceLetters","typewriterLetters","glitchLetters","flickerLetters","breatheText","imgPopBurst","imgImpactDrop","imgRocketIn","imgSpinSlam","imgFloatLoop","imgPulseLoop","imgWiggleLoop","imgSlowZoomIn","imgHoverBounce"] as const satisfies readonly AnimationType[];
-const visualEffects=["none","fxComicImpact","fxShockwave","fxSparkles","fxConfetti","fxHearts","fxElectric","fxPixelBurst","fxSmoke","fxEnergyRing","fxGlitch","fxFireBurst","fxIceShatter"] as const satisfies readonly VisualEffectType[];
 const entranceAnimations=["none","animFade","animPop","animBounce","animSpin","animShake","animSlideUp","animFirePulse","animElectric","animZoomPunch","animGlitch","animSoftFloat"] as const satisfies readonly EntranceAnimation[];
 const entranceAliases:Record<string,EntranceAnimation>={fade:"animFade",zoom:"animZoomPunch","slide-left":"animSlideUp","slide-right":"animSlideUp"};
 const textAliases:Record<string,AnimationType>={textWave:"waveLetters",wave:"waveLetters",textBounce:"bounceLetters","bounce-wave":"bounceLetters",textTypewriter:"typewriterLetters",textGlitchLoop:"glitchLetters",textFlicker:"flickerLetters",textBreathing:"breatheText"};
-const legacyFxAliases:Record<string,VisualEffectType>={burstImpact:"fxComicImpact",burstRing:"fxShockwave",burstStar:"fxSparkles",burstComet:"fxEnergyRing",burstShockwave:"fxShockwave",burstLoop:"fxSparkles",burstOnce:"fxComicImpact"};
 
 export function normalizeLayer(input:unknown):Layer{
   const l=record(input),a=record(l.animation);
@@ -24,7 +23,7 @@ export function normalizeLayer(input:unknown):Layer{
     const imageAnimation=oneOf(textAliases[str(l.imageAnimation??a.type,"none")]??str(l.imageAnimation??a.type,"none"),animationTypes,"none");
     const rawFx=str(l.burstEffect,"none");
     const burstEffect=oneOf(legacyFxAliases[rawFx]??rawFx,visualEffects,"none");
-    return {...d,...common,type:"image",imageUrl:str(l.imageUrl??l.image,""),fileName:str(l.fileName,""),fit:l.fit==="cover"?"cover":"contain",cropX:num(l.cropX,0),cropY:num(l.cropY,0),cropZoom:num(l.cropZoom,100),imageWidth:num(l.imageWidth??l.imgW??l.innerW,common.w),imageHeight:num(l.imageHeight??l.imgH??l.innerH,common.h),outline:num(l.outline,0),outlineColor:str(l.outlineColor,"#ffffff"),glow:num(l.glow,0),glowColor:str(l.glowColor,"#00aaff"),imageAnimation,imageAnimationSpeed:num(l.imageAnimationSpeed,1.4),burstEffect,burstSpeed:num(l.burstSpeed,.82),fxPrimaryColor:str(l.fxPrimaryColor,"#ffffff"),fxSecondaryColor:str(l.fxSecondaryColor,"#ff2d55"),fxIntensity:Math.max(0,Math.min(150,num(l.fxIntensity,70))),fxSize:Math.max(50,Math.min(200,num(l.fxSize,100))),fxOpacity:Math.max(0,Math.min(100,num(l.fxOpacity,100))),particle:str(l.particle,"none"),particleSpeed:num(l.particleSpeed,2.4)};
+    return {...d,...common,type:"image",imageUrl:str(l.imageUrl??l.image,""),fileName:str(l.fileName,""),fit:l.fit==="cover"?"cover":"contain",cropX:num(l.cropX,0),cropY:num(l.cropY,0),cropZoom:num(l.cropZoom,100),imageWidth:num(l.imageWidth??l.imgW??l.innerW,common.w),imageHeight:num(l.imageHeight??l.imgH??l.innerH,common.h),outline:num(l.outline,0),outlineColor:str(l.outlineColor,"#ffffff"),glow:num(l.glow,0),glowColor:str(l.glowColor,"#00aaff"),imageAnimation,imageAnimationSpeed:num(l.imageAnimationSpeed,1.4),burstEffect,burstSpeed:Math.max(.2,Math.min(8,num(l.burstSpeed,.82))),fxPrimaryColor:str(l.fxPrimaryColor,"#ffffff"),fxSecondaryColor:str(l.fxSecondaryColor,"#ff2d55"),fxIntensity:Math.max(0,Math.min(150,num(l.fxIntensity,70))),fxSize:Math.max(50,Math.min(200,num(l.fxSize,100))),fxSpread:Math.max(25,Math.min(200,num(l.fxSpread,100))),fxOpacity:Math.max(0,Math.min(100,num(l.fxOpacity,100))),particle:str(l.particle,"none"),particleSpeed:num(l.particleSpeed,2.4)};
   }
   const d=defaultText();
   const rawEffect=str(l.effect,"solid");

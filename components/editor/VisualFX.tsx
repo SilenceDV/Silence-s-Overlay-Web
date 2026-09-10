@@ -1,83 +1,51 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef } from "react";
 import type { ImageLayer } from "@/types/editor";
+import { canvasResolution, createFXScene, drawFX, prepareFX } from "@/lib/editor/visualFxCanvas";
+import { useFXReplay } from "./FXReplay";
 
-const frontEffects = new Set<ImageLayer["burstEffect"]>([
-  "fxSparkles",
-  "fxConfetti",
-  "fxHearts",
-  "fxElectric",
-  "fxPixelBurst",
-  "fxGlitch",
-  "fxFireBurst",
-  "fxIceShatter",
-]);
-
-const counts: Partial<Record<ImageLayer["burstEffect"], number>> = {
-  fxShockwave: 3,
-  fxSparkles: 18,
-  fxConfetti: 24,
-  fxHearts: 14,
-  fxElectric: 10,
-  fxPixelBurst: 20,
-  fxSmoke: 14,
-  fxEnergyRing: 4,
-  fxGlitch: 16,
-  fxFireBurst: 18,
-  fxIceShatter: 18,
-};
-
-function pieceStyle(index: number, count: number, intensity: number): CSSProperties {
-  const degrees = (index / Math.max(1, count)) * 360 + (index % 4) * 11;
-  const radians = degrees * Math.PI / 180;
-  const orbit = 28 + (index % 5) * 7;
-  const distance = (82 + (index % 6) * 26) * intensity;
-  return {
-    "--fxAngle": `${degrees}deg`,
-    "--fxDistance": `${distance}px`,
-    "--fxDelay": `${((index % 7) * .045).toFixed(3)}s`,
-    "--fxPieceSize": `${8 + (index % 6) * 4}px`,
-    "--fxX": `${50 + Math.cos(radians) * orbit}%`,
-    "--fxY": `${50 + Math.sin(radians) * orbit}%`,
-    "--fxRotation": `${(index * 47) % 360}deg`,
-  } as CSSProperties;
-}
-
-export function VisualFX({ layer }: { layer: ImageLayer }) {
-  if (layer.burstEffect === "none") return null;
-
-  const intensity = Math.max(.1, Math.min(1.5, layer.fxIntensity / 100));
-  const size = Math.max(.5, Math.min(2, layer.fxSize / 100));
-  const opacity = Math.max(0, Math.min(1, layer.fxOpacity / 100));
-  const count = counts[layer.burstEffect] ?? 0;
-  const signature = [
-    layer.burstEffect,
-    layer.burstSpeed,
-    layer.fxPrimaryColor,
-    layer.fxSecondaryColor,
-    layer.fxIntensity,
-    layer.fxSize,
-    layer.fxOpacity,
-  ].join(":");
-  const style = {
-    "--fxSpeed": `${Math.max(.2, layer.burstSpeed)}s`,
-    "--fxPrimary": layer.fxPrimaryColor || "#ffffff",
-    "--fxSecondary": layer.fxSecondaryColor || "#ff2d55",
-    "--fxScale": String(size),
-    "--fxOpacity": String(opacity),
-    "--fxGlow": `${16 * intensity}px`,
-    "--fxBorder": `${4 + 5 * intensity}px`,
-    "--fxSparkScale": String(.9 + .45 * intensity),
-    "--fxRise": `${70 * intensity}px`,
-  } as CSSProperties;
-
-  return <div
-    key={signature}
-    aria-hidden="true"
-    className={`visualFX ${layer.burstEffect} ${frontEffects.has(layer.burstEffect) ? "fxFront" : "fxBehind"}`}
-    style={style}
-  >
-    {Array.from({ length: count }, (_, index) => <span key={index} style={pieceStyle(index, count, intensity)} />)}
-  </div>;
+export function VisualFX({ layer, preview = false }: { layer: ImageLayer; preview?: boolean }) {
+  const behind = useRef<HTMLCanvasElement>(null), front = useRef<HTMLCanvasElement>(null);
+  const replay = useFXReplay();
+  // Keep this image's version stable when another image is replayed.
+  const version = useRef(0);
+  if (preview && replay.id === layer.id) version.current = replay.version;
+  const replayVersion = version.current;
+  const {id, burstEffect, burstSpeed, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h} = layer;
+  useEffect(() => {
+    if (burstEffect === "none" || !behind.current || !front.current) return;
+    const back = behind.current, fore = front.current;
+    const backCtx = back.getContext("2d"), frontCtx = fore.getContext("2d");
+    if (!backCtx || !frontCtx) return;
+    let frame: number | null = null;
+    const clear = () => { for (const canvas of [back, fore]) { const ctx = canvas.getContext("2d"); ctx?.setTransform(1,0,0,1,0,0); ctx?.clearRect(0,0,canvas.width,canvas.height); } };
+    const motion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    const stop = () => { if (frame !== null) cancelAnimationFrame(frame); frame = null; clear(); };
+    if (motion?.matches || fxOpacity <= 0 || fxIntensity <= 0 || document.hidden) return;
+    const scene = createFXScene({id, burstEffect, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h} as ImageLayer, `${id}:${replayVersion}`);
+    const width = scene.width + scene.padding * 2, height = scene.height + scene.padding * 2;
+    const resolution = canvasResolution(width, height, window.devicePixelRatio || 1);
+    for (const canvas of [back, fore]) {
+      canvas.width = resolution.width; canvas.height = resolution.height;
+      canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+    }
+    prepareFX(scene);
+    const duration = Math.max(.2, Math.min(8, burstSpeed)) * 1000;
+    let start: number | null = null;
+    const tick = (now: number) => {
+      if (start === null) start = now;
+      const time = (now - start) / duration;
+      drawFX(backCtx, scene, time, false); drawFX(frontCtx, scene, time, true);
+      frame = time < 1 ? requestAnimationFrame(tick) : null;
+    };
+    frame = requestAnimationFrame(tick);
+    const visibility = () => { if (document.hidden) stop(); };
+    const reduced = () => { if (motion?.matches) stop(); };
+    document.addEventListener("visibilitychange", visibility);
+    motion?.addEventListener("change", reduced);
+    return () => { stop(); document.removeEventListener("visibilitychange", visibility); motion?.removeEventListener("change", reduced); };
+  }, [id, burstEffect, burstSpeed, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h, replayVersion]);
+  if (burstEffect === "none") return null;
+  return <><canvas ref={behind} aria-hidden="true" className="visualFX fxBehind"/><canvas ref={front} aria-hidden="true" className="visualFX fxFront"/></>;
 }
