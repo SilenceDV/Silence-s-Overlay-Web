@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@/styles/globals.css";
 import "@/styles/controls.css";
 import "@/styles/animations.css";
+import "@/styles/visual-fx.css";
 import "@/styles/editor.css";
 import "@/styles/legacy-effects.css";
 import "@/styles/overlay.css";
