@@ -11,7 +11,7 @@ export function seededRandom(seed: string) {
 export type ParticleKind = "blast" | "smoke" | "spark" | "flame" | "debris" | "shard" | "glint" | "mote" | "confetti";
 export interface Particle {
   kind: ParticleKind; front: boolean; x: number; y: number; vx: number; vy: number;
-  size: number; depth: number; delay: number; life: number; rotation: number; spin: number;
+  size: number; depth: number; z: number; vz: number; delay: number; life: number; rotation: number; spin: number;
   phase: number; gravity: number; drag: number; sway: number; brightness: number; trail: number;
   secondary: boolean; variant: number; originIndex:number; shape: Float32Array;
 }
@@ -34,11 +34,16 @@ export function displacement(velocity: number, acceleration: number, drag: numbe
   const travel = -Math.expm1(-drag * age) / drag;
   return velocity * travel + acceleration * (age - travel) / drag;
 }
+/** Bounded perspective: foreground objects approach; distant particles recede.
+ * Projection is anchored at each emitter, never at a shared radial center. */
+export function particleScale(p: Particle, age: number) {
+  return 1 / (1 - Math.max(-.8, Math.min(.48, p.z + p.vz * age)));
+}
 export function particleX(p: Particle, age: number) {
-  return p.x + displacement(p.vx, 0, p.drag, age) + p.sway * (Math.sin(p.phase + age * 7) - Math.sin(p.phase));
+  return p.x + (displacement(p.vx, 0, p.drag, age) + p.sway * (Math.sin(p.phase + age * 7) - Math.sin(p.phase))) * particleScale(p, age);
 }
 export function particleY(p: Particle, age: number) {
-  return p.y + displacement(p.vy, p.gravity, p.drag, age);
+  return p.y + displacement(p.vy, p.gravity, p.drag, age) * particleScale(p, age);
 }
 
 /** Each preset owns its emission layout. No perimeter ring is shared between effects. */
@@ -59,11 +64,17 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
   const count = (n: number) => Math.round(n * intensity);
   const add = (kind: ParticleKind, front: boolean, values: Partial<Particle>) => {
     const p: Particle = {kind,front,x:0,y:0,vx:0,vy:0,size:range(2,5)*size,
-      depth:front?range(.8,1.25):range(.45,.75),delay:range(0,.08),life:range(.6,.88),
+      depth:front?range(.8,1.25):range(.45,.75),z:0,vz:0,delay:range(0,.08),life:range(.6,.88),
       rotation:range(0,TAU),spin:range(-10,10),phase:range(0,TAU),gravity:160,drag:range(1,3),
       sway:0,brightness:range(.7,1.3),trail:range(.025,.12),secondary:r()<.6,variant:Math.floor(r()*3),
       originIndex:0,shape:new Float32Array(0),...values};
     p.life = Math.min(p.life, 1 - p.delay);
+    // Use existing seeded variation so palettes/replay do not alter geometry.
+    const near=front&&p.phase<2.5,volume=kind==="flame"||kind==="smoke"||kind==="blast";
+    p.z=volume?-.08:front?(near?-.04:-.22):-.4;
+    p.vz=volume?.12:near?.85+p.phase*.055:front?.22:-.2;
+    if(near&&(kind==="shard"||kind==="debris"||kind==="confetti"||kind==="glint"))p.size*=1.35;
+    if(kind==="spark"&&effect==="fxFireBurst"){p.z=-.2;p.vz=.12}
     if (kind === "shard" || kind === "debris") {
       p.shape = new Float32Array(10);
       for (let j=0;j<5;j++) {const angle=j/5*TAU+range(-.22,.22), radius=range(.5,1);p.shape[j*2]=Math.cos(angle)*radius;p.shape[j*2+1]=Math.sin(angle)*radius*(kind==="shard"?1.8:1);}
@@ -99,7 +110,7 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
       const o=emitters.sample("multiPoint",i),angle=Math.atan2(o.ny,o.nx)+range(-.8,.8);
       add("debris",true,{x:o.x,y:o.y,originIndex:o.index,
         vx:Math.cos(angle)*force*range(.8,1.6),vy:Math.sin(angle)*force-80,drag:range(1,2),gravity:380,
-        delay:range(.08,.16),life:range(.55,.8),size:range(10,21)*size});
+        delay:range(.08,.16),life:range(.55,.8),size:range(14,26)*size});
     }
   } else if (effect === "fxSpark") {
     // Independent surface contacts throw crossing jets; softer edge contacts spray outward.
@@ -155,7 +166,7 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
       const o=emitters.sample(i%3===0?"fullArea":"surface",i);
       add(i%3===0?"glint":"mote",i%4!==0,{x:o.x,y:o.y,originIndex:o.index,
         vx:range(-30,55)*spread,vy:range(-85,-30)*spread,gravity:-15,drag:range(.4,1.1),sway:range(10,40),
-        size:(i%3===0?range(5,12):range(1,4))*size,delay:range(.01,.47),life:range(.32,.53)});
+        size:(i%3===0?range(7,14):range(2,5))*size,delay:range(.01,.47),life:range(.32,.53)});
     }
   } else if (effect === "fxConfetti") {
     for (let i=0;i<count(44);i++) {
@@ -195,13 +206,15 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
     }
     for(let i=0;i<count(12);i++)add("mote",i%4!==0,{x:bell()*width*.43,y:bell()*height*.4,vx:bell()*65,vy:bell()*65,gravity:0,drag:2,size:range(1,3)*size,delay:range(.02,.55),life:range(.12,.32)});
   }
+  scene.particles.sort((a,b)=>a.z-b.z);
   // Analytic conservative travel bounds, not PNG alpha/crop bounds. No particle canvas edge cuts.
   let reach=effect==="fxImpact"?Math.max(width,height)*.55*size:120;
   for(const p of scene.particles){const age=p.life;
     const dx=Math.abs(displacement(p.vx,0,p.drag,age))+p.sway*2;
     const dy=Math.abs(displacement(p.vy,0,p.drag,age))+Math.abs(displacement(0,p.gravity,p.drag,age));
-    const radius=p.size*(p.kind==="blast"||p.kind==="smoke"?2.6:p.kind==="flame"?3.4:4);
-    reach=Math.max(reach,Math.abs(p.x)+dx+radius-width/2,Math.abs(p.y)+dy+radius-height/2);
+    const scale=Math.max(particleScale(p,0),particleScale(p,age));
+    const radius=p.size*(p.kind==="blast"||p.kind==="smoke"?2.6:p.kind==="flame"?3.4:p.kind==="spark"?8:5)*scale;
+    reach=Math.max(reach,Math.abs(p.x)+dx*scale+radius-width/2,Math.abs(p.y)+dy*scale+radius-height/2);
   }
   for(const arc of scene.arcs)for(let f=0;f<arc.frames.length;f++){
     for(let b=-1;b<2;b++){const points=b<0?arc.frames[f]:arc.branches[f][b];

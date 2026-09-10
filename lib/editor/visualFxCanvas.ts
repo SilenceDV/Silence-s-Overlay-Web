@@ -1,4 +1,4 @@
-import { particleX, particleY, type FXScene, type Particle, type Arc } from "./visualFxParticles";
+import { particleX, particleY, particleScale, type FXScene, type Particle, type Arc } from "./visualFxParticles";
 import { prepareFX } from "./visualFxTextures";
 export { createFXScene, seededRandom } from "./visualFxParticles";
 export type { FXScene } from "./visualFxParticles";
@@ -17,7 +17,7 @@ function light(ctx:CanvasRenderingContext2D,texture:HTMLCanvasElement,x:number,y
   ctx.globalAlpha=clamp(alpha);ctx.drawImage(texture,x-r,y-r*stretch,r*2,r*2*stretch);
 }
 function spark(ctx:CanvasRenderingContext2D,scene:FXScene,p:Particle,x:number,y:number,age:number,alpha:number) {
-  const textures=scene.textures!,size=p.size*(p.front?1:1.5);
+  const textures=scene.textures!,size=p.size*particleScale(p,age)*(p.front?1:1.3);
   const tailAge=Math.max(0,age-p.trail),segments=p.trail>.035?5:1;
   const texture=textures.streak[p.secondary?1:0];
   // Sample the actual drag/gravity/sway trajectory, preserving the taper along it.
@@ -38,7 +38,7 @@ function fragment(ctx:CanvasRenderingContext2D,scene:FXScene,p:Particle,x:number
   const textures=scene.textures!,primary=textures.colors[0],secondary=textures.colors[1],ice=p.kind==="shard";
   if(ice)light(ctx,textures.light[1],x,y,p.size*1.8,alpha*.12);
   ctx.translate(x,y);ctx.rotate(p.rotation+p.spin*t);
-  ctx.scale(.25+Math.abs(Math.cos(p.phase+t*5))*.75,1);
+  ctx.scale(.3+Math.abs(Math.cos(p.phase+t*5))*.7,.78+.22*Math.cos(p.phase+t*3));
   ctx.globalAlpha=clamp(alpha);
   const face=ctx.createLinearGradient(-p.size,-p.size,p.size,p.size);
   if(ice){face.addColorStop(0,primary);face.addColorStop(.28,secondary);face.addColorStop(.49,primary);face.addColorStop(.55,secondary);face.addColorStop(1,"#143445");}
@@ -46,6 +46,14 @@ function fragment(ctx:CanvasRenderingContext2D,scene:FXScene,p:Particle,x:number
   ctx.fillStyle=face;ctx.beginPath();
   for(let i=0;i<p.shape.length;i+=2){if(i===0)ctx.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);else ctx.lineTo(p.shape[i]*p.size,p.shape[i+1]*p.size);}
   ctx.closePath();ctx.fill();
+  // Lit, beveled faces turn around an offset ridge, giving fragments thickness.
+  const ridgeX=-p.size*.16,ridgeY=-p.size*.12,lightAngle=p.phase+t*7;
+  for(let i=0;i<p.shape.length;i+=2){
+    const next=(i+2)%p.shape.length,shade=.5+.5*Math.cos(i*.8+lightAngle);
+    ctx.beginPath();ctx.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);
+    ctx.lineTo(p.shape[next]*p.size,p.shape[next+1]*p.size);ctx.lineTo(ridgeX,ridgeY);ctx.closePath();
+    ctx.globalAlpha=clamp(alpha*(ice?.38:.55));ctx.fillStyle=shade>.55?primary:ice?"#123646":"#100d13";ctx.fill();
+  }
   // Specular edge changes as the fragment tumbles; dark faces keep volume readable.
   const reflection=.2+.8*Math.max(0,Math.sin(p.phase+t*11));ctx.globalAlpha=clamp(alpha*reflection);
   ctx.strokeStyle=ice?primary:secondary;ctx.lineWidth=ice?1:.8;
@@ -120,8 +128,15 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
     if(p.front!==front)continue;
     const age=time-p.delay,t=age/p.life;if(t<=0||t>=1)continue;
     const x=particleX(p,age),y=particleY(p,age);
-    const alpha=envelope(t)*opacity*p.depth*p.brightness;
+    // Solid objects remain readable as they approach, then leave with a short fade.
+    const solid=p.kind==="shard"||p.kind==="debris"||p.kind==="confetti"||(p.kind==="glint"&&effect==="fxMagic");
+    const visibility=solid?smooth(0,.045,t)*(1-smooth(.65,1,t)):envelope(t);
+    const alpha=visibility*opacity*p.depth*p.brightness;
     ctx.save();
+    if(p.kind!=="spark"){
+      const projection=particleScale(p,age);
+      ctx.translate(x,y);ctx.scale(projection,projection);ctx.translate(-x,-y);
+    }
     ctx.globalCompositeOperation=p.kind==="smoke"||p.kind==="confetti"||p.kind==="shard"||p.kind==="debris"?"source-over":"lighter";
     if(p.kind==="spark")spark(ctx,scene,p,x,y,age,alpha);
     else if(p.kind==="blast"){
@@ -139,7 +154,8 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
       const r=p.size*(.65+.55*Math.sin(t*Math.PI))*(1-t*.25);
       ctx.translate(x,y);ctx.rotate(p.rotation+Math.sin(p.phase+age*5)*.1);
       light(ctx,textures.light[1],0,r*.2,r*1.2,alpha*.13,1.5);
-      light(ctx,textures.flame[0][p.variant],0,0,r,alpha*1.2,1.7);
+      ctx.globalCompositeOperation="source-over";
+      light(ctx,textures.flame[0][p.variant],0,0,r,alpha,1.7);
     }else if(p.kind==="shard"||p.kind==="debris")fragment(ctx,scene,p,x,y,t,alpha);
     else if(p.kind==="confetti"){
       ctx.translate(x,y);ctx.rotate(p.rotation+p.spin*age);ctx.scale(Math.cos(p.phase+age*11),1);
@@ -150,7 +166,15 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
       const twinkle=.55+.45*Math.sin(p.phase+age*17)**2;
       light(ctx,textures.light[p.secondary?1:0],x,y,p.size*(p.kind==="glint"?3:5),alpha*twinkle*(front?.4:.2));
       ctx.globalAlpha=clamp(alpha*twinkle);ctx.fillStyle=primary;
-      if(p.kind==="glint"){
+      if(p.kind==="glint"&&effect==="fxMagic"){
+        // Rounded luminous beads with shaded rims read as small objects in depth.
+        const r=p.size*(.65+.35*Math.sin(t*Math.PI));
+        ctx.globalCompositeOperation="source-over";ctx.globalAlpha=clamp(alpha*twinkle);
+        const body=ctx.createRadialGradient(x-r*.3,y-r*.35,r*.05,x,y,r);
+        body.addColorStop(0,"#ffffff");body.addColorStop(.22,primary);body.addColorStop(.6,secondary);body.addColorStop(1,"#20243b");
+        ctx.fillStyle=body;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();
+        ctx.globalAlpha=clamp(alpha*.7);ctx.fillStyle="#ffffff";ctx.beginPath();ctx.arc(x-r*.3,y-r*.35,r*.16,0,TAU);ctx.fill();
+      }else if(p.kind==="glint"){
         const r=p.size*(.3+.7*Math.sin(t*Math.PI));ctx.translate(x,y);ctx.rotate(p.rotation+age*.25);
         ctx.beginPath();ctx.moveTo(0,-r*1.5);ctx.quadraticCurveTo(r*.09,-r*.09,r,0);ctx.quadraticCurveTo(r*.09,r*.09,0,r*1.5);ctx.quadraticCurveTo(-r*.09,r*.09,-r,0);ctx.quadraticCurveTo(-r*.09,-r*.09,0,-r*1.5);ctx.fill();
       }else{ctx.beginPath();ctx.arc(x,y,p.size*(front?.4:.3),0,TAU);ctx.fill();}

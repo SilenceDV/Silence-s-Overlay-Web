@@ -31,7 +31,7 @@ At intensity 100, presets use 12-59 particles; Electric also has 12 short-lived 
 
 ## Verification
 
-`npm run typecheck`, `npm run lint`, `npm test` (130 tests), and `npm run build` pass. Lint retains the two existing layout-font/sidebar-image warnings.
+`npm run typecheck`, `npm run lint`, `npm test` (139 tests), and `npm run build` pass. Lint retains the two existing layout-font/sidebar-image warnings.
 
 Regression tests cover normalization, legacy JSON, defaults, selected-image replay, hosted remounts/realtime refreshes, cleanup, canvas bounds, front particle coverage, rear-only flames, cross-image electrical trunks, multi-source emission, staged impact timing, drag/gravity, texture reuse, switching without canvas replacement, and buffer reuse on replay/settings changes. No existing tests were removed or weakened.
 
@@ -39,4 +39,12 @@ A temporary browser fixture used the real image controls through None, Electric,
 
 This audit does not prove the absence of every transient browser/native-menu artifact. The originally reported white flash was not reproduced or conclusively traced. Performance under TikTok Studio plus a running game has not been measured.
 
-Reference comparison remains pending: the referenced TikTok gift video was not present in the supplied attachments or repository. The user has been asked to attach it. These checks establish a tested implementation checkpoint, not final acceptance against an unseen reference.
+## Reference-informed depth pass
+
+The supplied `ScreenRecording_06-07-2026 13-25-10_1.mp4` was inspected across the clip, including half-second samples of the game area. At roughly 9-16 seconds, shaded orange objects and pink fish grow toward the camera, overlap the character, and retain readable silhouettes with localized glow. The user confirmed that the overall depth, glow and object motion are the benchmark. This is a style adaptation to the existing FX presets, not a recreation of that game's objects or 3D scene.
+
+Foreground particles now use bounded perspective growth and increasing travel anchored to their individual emitter sites. Distant particles recede and remain smaller. A subset of nearby fragments, confetti and Magic beads is larger; solid pieces retain opacity later in their lifetime so the approach is visible. Ice and debris have turning shaded faces, Magic has rounded luminous beads, and overlapping rear flames use normal alpha compositing to retain colored detail. Electric's crossing paths and all main fire's rear placement are preserved.
+
+Depth is derived runtime state, never persisted to project JSON. Projected motion and full glow radii are included in allocation bounds, with the existing pixel/resolution limits unchanged. Nine new tests cover foreground growth, distant recession, emitter anchoring, and projected bounds at extreme size/spread over multiple aspect ratios. All prior tests remain intact.
+
+Browser review checked early, middle and late phases across all eight presets, plus live replay. The switching audit was repeated after these changes with zero canvas replacements, hidden/unloaded PNG frames or broad white canvas fills. The temporary route was removed before the production build. Final artistic judgment remains subjective; these observations do not claim exact visual equivalence to the reference's 3D scene.
