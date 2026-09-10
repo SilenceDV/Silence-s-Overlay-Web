@@ -28,11 +28,11 @@ const counts: Partial<Record<ImageLayer["burstEffect"], number>> = {
   fxIceShatter: 18,
 };
 
-function pieceStyle(index: number, count: number): CSSProperties {
+function pieceStyle(index: number, count: number, intensity: number): CSSProperties {
   const degrees = (index / Math.max(1, count)) * 360 + (index % 4) * 11;
   const radians = degrees * Math.PI / 180;
   const orbit = 28 + (index % 5) * 7;
-  const distance = 82 + (index % 6) * 26;
+  const distance = (82 + (index % 6) * 26) * intensity;
   return {
     "--fxAngle": `${degrees}deg`,
     "--fxDistance": `${distance}px`,
@@ -64,9 +64,12 @@ export function VisualFX({ layer }: { layer: ImageLayer }) {
     "--fxSpeed": `${Math.max(.2, layer.burstSpeed)}s`,
     "--fxPrimary": layer.fxPrimaryColor || "#ffffff",
     "--fxSecondary": layer.fxSecondaryColor || "#ff2d55",
-    "--fxIntensity": String(intensity),
     "--fxScale": String(size),
     "--fxOpacity": String(opacity),
+    "--fxGlow": `${16 * intensity}px`,
+    "--fxBorder": `${4 + 5 * intensity}px`,
+    "--fxSparkScale": String(.9 + .45 * intensity),
+    "--fxRise": `${70 * intensity}px`,
   } as CSSProperties;
 
   return <div
@@ -75,6 +78,6 @@ export function VisualFX({ layer }: { layer: ImageLayer }) {
     className={`visualFX ${layer.burstEffect} ${frontEffects.has(layer.burstEffect) ? "fxFront" : "fxBehind"}`}
     style={style}
   >
-    {Array.from({ length: count }, (_, index) => <span key={index} style={pieceStyle(index, count)} />)}
+    {Array.from({ length: count }, (_, index) => <span key={index} style={pieceStyle(index, count, intensity)} />)}
   </div>;
 }
