@@ -4,12 +4,14 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { Layer, Project } from "@/types/editor";
 import { StageViewport } from "@/components/editor/StageViewport";
 import { ImageContent, TextContent } from "@/components/editor/CanvasStage";
+import { VisualFX } from "@/components/editor/VisualFX";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function HostedLayer({layer}:{layer:Layer}){
   const style={left:`${layer.x}%`,top:`${layer.y}%`,width:`${layer.w}%`,height:`${layer.h}%`,opacity:layer.opacity/100,"--textAnimSpeed":`${layer.type==="text"?layer.textAnimationSpeed:1.15}s`,"--letterDelay":`${layer.type==="text"?layer.textLetterDelay:.055}s`,"--shimmerSpeed":`${layer.type==="text"?layer.textShimmerSpeed:2.2}s`,"--burstSpeed":`${layer.type==="image"?layer.burstSpeed:.82}s`,"--layerAnimSpeed":`${layer.type==="image"?layer.imageAnimationSpeed:1.4}s`,pointerEvents:"none"} as CSSProperties;
-  return <div className={`layerBox ${layer.type==="image"&&layer.fit==="cover"?"imageCropped":""} ${layer.type==="image"?`${layer.imageAnimation} ${layer.burstEffect}`:""}`} style={style}>
+  return <div className={`layerBox ${layer.type==="image"&&layer.fit==="cover"?"imageCropped":""} ${layer.type==="image"?layer.imageAnimation:""}`} style={style}>
     <div className="layerClip">{layer.type==="text"?<TextContent layer={layer}/>:<ImageContent layer={layer}/>}</div>
+    {layer.type==="image"&&<VisualFX layer={layer}/>} 
   </div>;
 }
 
