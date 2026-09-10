@@ -1,25 +1,36 @@
 # Image Visual FX
 
-The editor and hosted overlay both render `components/editor/VisualFX.tsx`. The image and its crop remain DOM elements; two pointer-transparent canvas siblings put particles behind and in front of the image. Coordinates use the existing 1920 × 1080 stage, including its viewport scaling.
+The editor and hosted overlay still use the same `components/editor/VisualFX.tsx`. The render stack is a back canvas, the existing DOM image/crop, and a front canvas. Both canvases cover the image interior and a padded travel region. Neither follows the PNG's alpha mask. Pointer handling, image motion, crop, outline, glow, sidebar controls, and Replay FX are unchanged.
 
-The eight primary presets are Impact, Smoke, Spark, Electric, Fire, Ice, Magic and Confetti. Each is a one-shot. FX Speed sets total duration; intensity changes particle density, size changes particle size, spread changes travel, and opacity controls both planes. Selecting an effect sets its palette, then both colors remain editable.
+## Effect-specific composition
 
-Replay FX uses an editor-scoped context/version, independent of project state, undo history and autosave. Other images retain their replay versions. The hosted renderer uses its existing slide/index mount key, so consecutive identical effects replay on each appearance without restarting on unchanged realtime snapshots.
+| Effect | Back | Front |
+| --- | --- | --- |
+| Impact | Short core flash, expanding warm light, irregular textured pressure lobes | Two asymmetric ejecta fans, a few tumbling dark fragments, delayed fine sparks |
+| Spark | Softer particles emerging from a localized contact area | Bright directional sprays originating on the image, tapered luminous trails and a delayed fine spray |
+| Electric | Occasional edge arcs | Most trunks cross the image interior, with traveling leaders, changing fractal paths, two branches, flicker and layered bloom |
+| Fire | All main flames and heat mass, rising past the top and side edges | Only small sparks/embers |
+| Smoke | Soft overlapping drifting volumes | Lower-opacity clouds crossing portions of the image |
+| Ice | A few softer fragments | Most faceted rotating shards and small glints |
+| Magic | Soft light dots | Staggered glints and curved drifting particles across the image surface |
+| Confetti | Some lower-contrast pieces | Most fluttering rectangles/ribbons, including pieces traveling across the image |
 
-Legacy burst aliases are shared by normalization and validation in `lib/editor/visualFx.ts`. Existing PR #25 values remain valid and round-trip unchanged: comic/shockwave/pixel map to Impact at render time; sparkles/hearts/energy ring map to Magic; glitch maps to Electric. `burstComet` migrates to Spark. Legacy loop values become one-shot Magic. Missing spread defaults to 100; normalization clamps it to 25–200.
+No shared elliptical emitter remains. Presets use localized jets, interior scatter, rear flame sources, or cross-image electrical paths. Seeded randomness varies position, speed, lifespan, brightness, trail length, delay, size and rotation. Motion uses an analytic drag/gravity solution with elapsed effect time, independent of each particle's lifespan. Opacity has a fast attack, bright peak and nonlinear dissipation.
 
-## Rendering budget
+Small pre-rendered bitmaps provide tapered spark trails, flame detail, soft light, and multi-scale noise volumes. Smoke and hot explosion clouds have different density/lighting profiles. Active scenes retain these textures; drawing frames do not recreate them. Electrical geometry is preallocated in several changing shapes and interpolated during playback.
 
-- At most 102 particles per image, plus up to 21 short-lived electrical arcs.
-- Two canvas planes, each capped at 1 million pixels and 1536 pixels on its longest side; device scale capped at 1.5.
-- Small cached smoke/light/flame textures are created before playback. Active scenes retain their textures, avoiding cache churn during frames.
-- Direct requestAnimationFrame drawing, analytic motion, no per-frame React state updates, and no new runtime dependencies.
-- At completion the canvases clear and no further animation frame is scheduled. Cleanup, hidden tabs, and reduced-motion preference changes cancel playback.
+## Compatibility and performance
+
+All controls and the existing legacy FX normalization/validation remain unchanged. Replay FX is still editor-local and does not modify project data or history. The hosted slide/index key still restarts each appearance, including consecutive identical image IDs/FX; unchanged realtime refreshes do not restart playback.
+
+At intensity 100, presets use 12–56 particles; Electric also has 12 short-lived arcs. At maximum intensity, Impact has 84 particles. Each canvas remains capped at one million pixels and 1536 pixels on its longest side, with device scale capped at 1.5. Particle travel and every electrical branch/glow contribute to padding. The bounded texture cache holds 32 small sprites. No runtime dependency was added.
+
+Completed effects clear both planes and stop requesting animation frames. Unmounting, hidden tabs and reduced-motion changes retain their existing cancellation behavior.
 
 ## Verification
 
-`npm run typecheck`, `npm run lint`, `npm test` (89 tests), and `npm run build` pass. Lint retains the two existing layout-font/sidebar-image warnings.
+`npm run typecheck`, `npm run lint`, `npm test` (117 tests), and `npm run build` pass. Lint retains the two existing layout-font/sidebar-image warnings.
 
-Regression coverage includes legacy imports, all supported FX values, control defaults/ranges, JSON round trips, schema acceptance, particle determinism, backing resolution limits, one-shot cleanup, selected-image replay isolation, reduced motion, hidden tabs, and actual hosted slide remounts/realtime refreshes.
+The regression suite covers normalization, legacy JSON, schema defaults, selected-image replay, hosted remounts/realtime refreshes, cleanup, canvas bounds, front-of-image particle coverage, rear-only main flames, cross-image electrical trunks, asymmetric spark emission, staged impact timing, drag/gravity, and texture reuse. No existing tests were removed or weakened.
 
-Browser review used the shared image and FX rendering plus fixed-phase captures at 15%, 40% and 70%. All eight presets were inspected on a dark background, including front/back overlap and late dissipation; no browser errors were observed. The temporary review route was removed. TikTok Studio performance under a running game has not been measured locally.
+Browser review used the actual shared renderer over an opaque PNG test badge, with live playback at the default 0.82-second speed and fixed phases. Foreground sparks/electrical paths were visibly drawn over the badge; main fire was occluded by it. Smoke, ice, magic and confetti were also reviewed over the image. Light and dark backgrounds and completed blank FX canvases were checked, with no browser errors observed. The temporary review route was removed before the production build. Performance under TikTok Studio plus a running game has not been measured here.

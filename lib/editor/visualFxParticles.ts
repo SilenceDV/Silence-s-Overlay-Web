@@ -1,0 +1,195 @@
+import type { ImageLayer } from "@/types/editor";
+import { particleEffect, type ParticleEffect } from "./visualFx";
+
+const TAU = Math.PI * 2;
+export function seededRandom(seed: string) {
+  let state = 2166136261;
+  for (let i = 0; i < seed.length; i++) state = Math.imul(state ^ seed.charCodeAt(i), 16777619);
+  return () => { state += 0x6D2B79F5; let t = state; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+export type ParticleKind = "blast" | "smoke" | "spark" | "flame" | "debris" | "shard" | "glint" | "mote" | "confetti";
+export interface Particle {
+  kind: ParticleKind; front: boolean; x: number; y: number; vx: number; vy: number;
+  size: number; depth: number; delay: number; life: number; rotation: number; spin: number;
+  phase: number; gravity: number; drag: number; sway: number; brightness: number; trail: number;
+  secondary: boolean; variant: number; shape: Float32Array;
+}
+export interface Arc {
+  frames: Float32Array[]; branches: Float32Array[][];
+  delay: number; life: number; front: boolean; thickness: number; phase: number;
+}
+export interface FXTextures {
+  light: HTMLCanvasElement[]; smoke: HTMLCanvasElement[][]; flame: HTMLCanvasElement[][];
+  streak: HTMLCanvasElement[]; colors: string[];
+}
+export interface FXScene {
+  textures?: FXTextures; effect: ParticleEffect; particles: Particle[]; arcs: Arc[];
+  width: number; height: number; padding: number; primary: string; secondary: string;
+  size: number; opacity: number; intensity: number; originX: number; originY: number;
+}
+// Time is measured in fractions of the whole effect, not each particle's lifetime.
+// This is the analytic solution of dv/dt = acceleration - drag * velocity.
+export function displacement(velocity: number, acceleration: number, drag: number, age: number) {
+  const travel = -Math.expm1(-drag * age) / drag;
+  return velocity * travel + acceleration * (age - travel) / drag;
+}
+export function particleX(p: Particle, age: number) {
+  return p.x + displacement(p.vx, 0, p.drag, age) + p.sway * (Math.sin(p.phase + age * 7) - Math.sin(p.phase));
+}
+export function particleY(p: Particle, age: number) {
+  return p.y + displacement(p.vy, p.gravity, p.drag, age);
+}
+
+/** Each preset owns its emission layout. No perimeter ring is shared between effects. */
+export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
+  const r = seededRandom(seed + layer.burstEffect), range = (a: number, b: number) => a + (b - a) * r();
+  const bell = () => (r() + r() + r() - 1.5) / 1.5;
+  const effect = particleEffect(layer.burstEffect);
+  const size = Math.max(.5, Math.min(2, layer.fxSize / 100));
+  const spread = Math.max(.25, Math.min(2, (layer.fxSpread ?? 100) / 100));
+  const intensity = Math.max(0, Math.min(1.5, layer.fxIntensity / 100));
+  const width = Math.max(1, layer.w * 19.2), height = Math.max(1, layer.h * 10.8);
+  const unit = Math.max(100, Math.min(480, Math.min(width, height)));
+  const force = (unit * .85 + 160) * spread;
+  const scene: FXScene = {effect, particles:[], arcs:[], width, height, padding:0, size, intensity,
+    primary:layer.fxPrimaryColor, secondary:layer.fxSecondaryColor, opacity:layer.fxOpacity / 100,
+    originX:width * range(-.08,.04), originY:height * range(-.02,.1)};
+  const count = (n: number) => Math.round(n * intensity);
+  const add = (kind: ParticleKind, front: boolean, values: Partial<Particle>) => {
+    const p: Particle = {kind,front,x:0,y:0,vx:0,vy:0,size:range(2,5)*size,
+      depth:front?range(.8,1.25):range(.45,.75),delay:range(0,.08),life:range(.6,.88),
+      rotation:range(0,TAU),spin:range(-10,10),phase:range(0,TAU),gravity:160,drag:range(1,3),
+      sway:0,brightness:range(.7,1.3),trail:range(.025,.12),secondary:r()<.6,variant:Math.floor(r()*3),
+      shape:new Float32Array(0),...values};
+    p.life = Math.min(p.life, 1 - p.delay);
+    if (kind === "shard" || kind === "debris") {
+      p.shape = new Float32Array(10);
+      for (let j=0;j<5;j++) {const angle=j/5*TAU+range(-.22,.22), radius=range(.5,1);p.shape[j*2]=Math.cos(angle)*radius;p.shape[j*2+1]=Math.sin(angle)*radius*(kind==="shard"?1.8:1);}
+    }
+    scene.particles.push(p);
+  };
+
+  if (effect === "fxImpact") {
+    // Local detonation: overlapping rear pressure lobes, then two asymmetric ejecta fans.
+    for (let i=0;i<count(11);i++) {
+      const angle=range(0,TAU), speed=range(.4,1.1)*force;
+      add("blast",false,{x:scene.originX+bell()*width*.16,y:scene.originY+bell()*height*.15,
+        vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed*.7-50,drag:range(5,9),gravity:-35,
+        size:unit*range(.24,.43)*size,delay:range(.015,.065),life:range(.65,.9),sway:range(5,18)});
+    }
+    for (let i=0;i<count(26);i++) {
+      const angle=r()<.64?-.65+bell()*1.25:2.7+bell()*1.1, speed=force*range(1.2,2.8);
+      add("spark",i%5!==0,{x:scene.originX+bell()*width*.17,y:scene.originY+bell()*height*.12,
+        vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,drag:range(2.2,5),gravity:range(140,300),
+        delay:range(.065,.16),life:range(.35,.7),size:range(1.4,3.6)*size,trail:range(.035,.12)});
+    }
+    for (let i=0;i<count(14);i++) {
+      add("spark",i%4!==0,{x:scene.originX+bell()*width*.23,y:scene.originY+bell()*height*.22,
+        vx:bell()*force*.9,vy:range(-.6,.3)*force,gravity:range(100,260),drag:range(2,4),
+        delay:range(.2,.4),life:range(.25,.56),size:range(.6,1.5)*size,trail:range(.012,.035)});
+    }
+    for (let i=0;i<count(5);i++) {
+      const angle=range(0,TAU);
+      add("debris",true,{x:scene.originX+bell()*width*.18,y:scene.originY+bell()*height*.12,
+        vx:Math.cos(angle)*force*range(.8,1.6),vy:Math.sin(angle)*force-80,drag:range(1,2),gravity:380,
+        delay:range(.08,.16),life:range(.55,.8),size:range(7,15)*size});
+    }
+  } else if (effect === "fxSpark") {
+    // A metal-contact spray, with correlated jets and a delayed fine spray. Never a circular array.
+    for (let i=0;i<count(30);i++) {
+      const jet=r(), front=i%5!==0;
+      const angle=jet<.65?-.55+bell()*.85:jet<.87?-2.4+bell()*.6:.7+bell()*.8;
+      const speed=force*range(1.3,3.2);
+      add("spark",front,{x:scene.originX-width*.1+bell()*width*.09,y:scene.originY+bell()*height*.08,
+        vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,drag:range(1.4,4.5),gravity:range(130,340),
+        delay:range(.015,.16),life:range(.3,.78),size:range(1.3,3.1)*size,
+        brightness:range(.8,1.6),trail:range(.025,.115)});
+    }
+    for (let i=0;i<count(18);i++) {
+      add("spark",i%4!==0,{x:scene.originX+bell()*width*.16,y:scene.originY+bell()*height*.12,
+        vx:range(-.5,1.3)*force,vy:range(-1.1,.2)*force,drag:range(2,5),gravity:range(80,200),
+        delay:range(.13,.36),life:range(.2,.6),size:range(.6,1.25)*size,trail:range(.009,.035)});
+    }
+  } else if (effect === "fxFireBurst") {
+    for (let i=0;i<count(23);i++) {
+      const side=i%3===0;
+      add("flame",false,{x:side?(r()<.5?-1:1)*width*range(.3,.48):bell()*width*.33,
+        y:height*range(.06,.34),vx:bell()*force*.14,vy:-(height*.65+180)*range(.9,1.5)*spread,
+        gravity:-90,drag:range(.55,1.1),sway:range(9,25),size:unit*range(.26,.43)*size,
+        delay:range(0,.16),life:range(.67,.84),rotation:range(-.2,.2)});
+    }
+    for (let i=0;i<count(21);i++) {
+      add("spark",i%3!==0,{x:bell()*width*.42,y:height*range(.03,.34),
+        vx:bell()*force*.35,vy:-force*range(.6,1.5),gravity:-45,drag:range(.6,1.8),
+        delay:range(.1,.4),life:range(.35,.59),size:range(.7,1.8)*size,trail:range(.009,.03),sway:range(1,6)});
+    }
+  } else if (effect === "fxSmoke") {
+    for (let i=0;i<count(28);i++) {
+      const front=i%4===0;
+      add("smoke",front,{x:(r()<.5?-.23:.23)*width+bell()*width*.25,y:bell()*height*.3+height*.12,
+        vx:bell()*force*.32,vy:range(-100,-45)*spread,gravity:-55,drag:range(.8,1.8),sway:range(12,35),
+        size:unit*range(.24,.43)*size,delay:range(0,.15),life:range(.75,.85),brightness:front?.45:.9});
+    }
+  } else if (effect === "fxIceShatter") {
+    for (let i=0;i<count(26);i++) {
+      const angle=range(0,TAU),speed=force*range(.55,1.6);
+      add("shard",i%7!==0,{x:bell()*width*.32,y:bell()*height*.35,
+        vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-90,gravity:200,drag:range(.7,2),
+        size:range(9,25)*size,delay:range(.02,.11),life:range(.65,.86)});
+    }
+    for (let i=0;i<count(16);i++) add("glint",i%5!==0,{x:bell()*width*.38,y:bell()*height*.38,
+      vx:bell()*force,vy:bell()*force*.7,gravity:140,drag:1.4,size:range(1.5,4)*size,life:range(.35,.75)});
+  } else if (effect === "fxMagic") {
+    for (let i=0;i<count(36);i++) {
+      add(i%3===0?"glint":"mote",i%4!==0,{x:bell()*width*.48,y:bell()*height*.49,
+        vx:range(-30,55)*spread,vy:range(-85,-30)*spread,gravity:-15,drag:range(.4,1.1),sway:range(10,40),
+        size:(i%3===0?range(5,12):range(1,4))*size,delay:range(.01,.47),life:range(.32,.53)});
+    }
+  } else if (effect === "fxConfetti") {
+    for (let i=0;i<count(44);i++) {
+      add("confetti",i%3!==0,{x:bell()*width*.23,y:height*range(-.1,.25),
+        vx:bell()*force*2,vy:-force*range(.5,1.7),gravity:1100,drag:range(.5,1.1),sway:range(10,35),
+        size:range(5,12)*size,secondary:r()<.25,delay:range(0,.13),life:range(.74,.87),spin:range(-16,16)});
+    }
+  } else if (effect === "fxElectric") {
+    const makePath = (sx:number,sy:number,ex:number,ey:number,roughness:number) => {
+      const points=new Float32Array(66);points[0]=sx;points[1]=sy;points[64]=ex;points[65]=ey;
+      for(let step=32;step>1;step/=2){for(let j=0;j<32;j+=step){const mid=j+step/2;
+        points[mid*2]=(points[j*2]+points[(j+step)*2])/2+bell()*roughness;
+        points[mid*2+1]=(points[j*2+1]+points[(j+step)*2+1])/2+bell()*roughness;
+      }roughness*=.53;}
+      return points;
+    };
+    for(let i=0;i<count(12);i++) {
+      const front=i%6!==5;
+      const direction=r()<.5?-1:1;
+      let sx=-width*range(.31,.46),sy=height*range(-.4,-.15)*direction;
+      let ex=width*range(.31,.46),ey=height*range(.12,.4)*direction;
+      if(!front){sx=-width*.53;ex=width*.53;sy=-height*.48;ey=-height*.55;}
+      const frames:Float32Array[]=[],branches:Float32Array[][]=[];
+      for(let frame=0;frame<7;frame++) {
+        const path=makePath(sx,sy,ex,ey,unit*.24);frames.push(path);
+        const twig:Float32Array[]=[];
+        for(const at of [11,21]) twig.push(makePath(path[at*2],path[at*2+1],path[at*2]+range(-.2,.2)*width,path[at*2+1]+range(-.35,.35)*height,unit*.1));
+        branches.push(twig);
+      }
+      scene.arcs.push({frames,branches,front,delay:range(.005,.64),life:range(.16,.3),thickness:range(1.4,3.2)*size,phase:range(0,TAU)});
+    }
+    for(let i=0;i<count(12);i++)add("mote",i%4!==0,{x:bell()*width*.43,y:bell()*height*.4,vx:bell()*65,vy:bell()*65,gravity:0,drag:2,size:range(1,3)*size,delay:range(.02,.55),life:range(.12,.32)});
+  }
+  // Analytic conservative travel bounds, not PNG alpha/crop bounds. No particle canvas edge cuts.
+  let reach=120;
+  for(const p of scene.particles){const age=p.life;
+    const dx=Math.abs(displacement(p.vx,0,p.drag,age))+p.sway*2;
+    const dy=Math.abs(displacement(p.vy,0,p.drag,age))+Math.abs(displacement(0,p.gravity,p.drag,age));
+    const radius=p.size*(p.kind==="blast"||p.kind==="smoke"?2.6:p.kind==="flame"?3.4:4);
+    reach=Math.max(reach,Math.abs(p.x)+dx+radius-width/2,Math.abs(p.y)+dy+radius-height/2);
+  }
+  for(const arc of scene.arcs)for(let f=0;f<arc.frames.length;f++){
+    for(let b=-1;b<2;b++){const points=b<0?arc.frames[f]:arc.branches[f][b];
+      for(let j=0;j<points.length;j+=2)reach=Math.max(reach,Math.abs(points[j])-width/2+arc.thickness*8,Math.abs(points[j+1])-height/2+arc.thickness*8);
+    }
+  }
+  scene.padding=Math.ceil(reach+32);
+  return scene;
+}
