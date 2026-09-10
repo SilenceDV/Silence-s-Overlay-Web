@@ -25,3 +25,13 @@ it("legacy shockwave is a rear effect, not an impact spray over the image",()=>{
   expect(s.shockwaveOnly).toBe(true);expect(s.particles.every(p=>!p.front)).toBe(true);
   expect(s.particles.some(p=>p.kind==="blast"||p.kind==="spark")).toBe(false);
 });
+
+it("foreground smoke uses every surface region instead of repeating three origins",()=>{
+ for(const seed of ["a","b","c"]){const s=createFXScene({...defaultImage("",""),burstEffect:"fxSmoke",fxIntensity:100},seed);
+ expect(new Set(s.particles.filter(p=>p.front).map(p=>p.originIndex)).size).toBe(6)}
+});
+it("rear lightning routes collectively reach all four gift sides",()=>{
+ const s=createFXScene({...defaultImage("",""),burstEffect:"fxElectric",fxIntensity:100},"all-sides");
+ const endpoints=s.arcs.filter(a=>!a.front).flatMap(a=>{const p=a.frames[0];return [[p[0]/s.width,p[1]/s.height],[p[64]/s.width,p[65]/s.height]]});
+ for(const side of [endpoints.some(([x])=>x<-.42),endpoints.some(([x])=>x>.42),endpoints.some(([,y])=>y<-.42),endpoints.some(([,y])=>y>.42)])expect(side).toBe(true);
+});

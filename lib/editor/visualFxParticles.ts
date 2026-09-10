@@ -146,7 +146,7 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
     }
   } else if (effect === "fxSmoke") {
     for (let i=0;i<count(28);i++) {
-      const front=i%4===0,o=emitters.sample(front?"multiPoint":"perimeter",front?i:Math.floor(i/2));
+      const front=i%4===0,o=emitters.sample(front?"multiPoint":"perimeter",front?Math.floor(i/4):Math.floor(i/2));
       add("smoke",front,{x:o.x,y:o.y,originIndex:o.index,
         vx:bell()*force*.32,vy:range(-100,-45)*spread,gravity:-55,drag:range(.8,1.8),sway:range(12,35),
         size:unit*range(.24,.43)*size,delay:range(0,.15),life:range(.75,.85),brightness:front?.45:.9});
@@ -194,7 +194,7 @@ export function createFXScene(layer: ImageLayer, seed = layer.id): FXScene {
         default:sx=width*.43;sy=-height*.36;ex=-width*.4;ey=height*.39;
       }
       sx+=bell()*width*.06;sy+=bell()*height*.06;ex+=bell()*width*.06;ey+=bell()*height*.06;
-      if(!front){const a=emitters.sample("perimeter",Math.floor(i/6)),b=emitters.sample("perimeter",Math.floor(i/6)+1);sx=a.x;sy=a.y;ex=b.x;ey=b.y;}
+      if(!front){const a=emitters.sample("perimeter",Math.floor(i/6)*2),b=emitters.sample("perimeter",Math.floor(i/6)*2+1);sx=a.x;sy=a.y;ex=b.x;ey=b.y;}
       const frames:Float32Array[]=[],branches:Float32Array[][]=[];
       for(let frame=0;frame<7;frame++) {
         const path=makePath(sx,sy,ex,ey,unit*.24);frames.push(path);

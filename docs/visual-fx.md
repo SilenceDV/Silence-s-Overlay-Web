@@ -31,13 +31,13 @@ At intensity 100, presets use 12-59 particles; Electric also has 12 short-lived 
 
 ## Verification
 
-`npm run typecheck`, `npm run lint`, `npm test` (139 tests), and `npm run build` pass. Lint retains the two existing layout-font/sidebar-image warnings.
+`npm run typecheck`, `npm run lint`, `npm test` (145 tests), and `npm run build` pass. Lint retains the two existing layout-font/sidebar-image warnings.
 
 Regression tests cover normalization, legacy JSON, defaults, selected-image replay, hosted remounts/realtime refreshes, cleanup, canvas bounds, front particle coverage, rear-only flames, cross-image electrical trunks, multi-source emission, staged impact timing, drag/gravity, texture reuse, switching without canvas replacement, and buffer reuse on replay/settings changes. No existing tests were removed or weakened.
 
 A temporary browser fixture used the real image controls through None, Electric, Fire, Spark, Impact and back to None, plus Replay FX, speed/intensity changes and a palette change. An animation-frame audit recorded over 3,200 frames with zero canvas replacements, zero hidden/unloaded PNG frames and zero broad opaque-white canvas fills. Fixed-phase review covered all eight effects over an opaque PNG. The temporary route was removed before the production build.
 
-This audit does not prove the absence of every transient browser/native-menu artifact. The originally reported white flash was not reproduced or conclusively traced. Performance under TikTok Studio plus a running game has not been measured.
+The earlier canvas audit did not test native-menu painting. The subsequent `IMG_9014.mov` recording localizes the reported flash to the native Visual FX dropdown, including a pale menu rectangle around 11 seconds. The dropdown fix below addresses that distinct rendering path. Performance under TikTok Studio plus a running game has not been measured.
 
 ## Reference-informed depth pass
 
@@ -48,3 +48,14 @@ Foreground particles now use bounded perspective growth and increasing travel an
 Depth is derived runtime state, never persisted to project JSON. Projected motion and full glow radii are included in allocation bounds, with the existing pixel/resolution limits unchanged. Nine new tests cover foreground growth, distant recession, emitter anchoring, and projected bounds at extreme size/spread over multiple aspect ratios. All prior tests remain intact.
 
 Browser review checked early, middle and late phases across all eight presets, plus live replay. The switching audit was repeated after these changes with zero canvas replacements, hidden/unloaded PNG frames or broad white canvas fills. The temporary route was removed before the production build. Final artistic judgment remains subjective; these observations do not claim exact visual equivalence to the reference's 3D scene.
+
+
+## Visual FX dropdown correction
+
+Only the Visual FX native select is replaced by `VisualFXSelect`, a small DOM listbox with a button matching the existing dark closed control. The menu is portaled outside the scrolling sidebar to avoid clipping, positioned before mounting, and given an opaque dark inline background on its first render. It has no opening transition or native OS popup. Image Animation and other editor selects are unchanged; no UI dependency was added.
+
+Selection is marked with a check and color. Arrow keys, Home/End, Enter/Space and typeahead navigate/select; Escape, Tab, focus departure and outside pointer clicks dismiss. Scrolling the sidebar or resizing the window dismisses the menu; internal menu scrolling remains available. All supported FX values, including legacy values, are selectable. Existing palette application and Replay FX remain intact.
+
+Browser review repeated the effect-switching sequence, replay, reopening and outside dismissal. A mutation observer checked the menu's computed background/opacity immediately upon mounting: every observed mount was opaque dark. Screenshots showed dark menu surfaces and selected marks, with no browser errors. This removes the native dropdown painting path identified in the recording.
+
+Spatial follow-up fixes foreground smoke's repeating index stride so all six emitter regions are used, and routes the rear electrical arcs collectively across all four image sides. Existing multi-origin Impact/Spark, rear flames/front embers, and distributed Ice/Magic/Confetti remain covered by tests. New regressions cover these spatial corrections and custom dropdown selection, keyboard navigation, dismissal, dark initial styling, portal cleanup and legacy values.
