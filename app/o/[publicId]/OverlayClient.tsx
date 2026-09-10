@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { Layer, Project } from "@/types/editor";
 import { StageViewport } from "@/components/editor/StageViewport";
 import { ImageContent, TextContent } from "@/components/editor/CanvasStage";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function HostedLayer({layer}:{layer:Layer}){
   const style={left:`${layer.x}%`,top:`${layer.y}%`,width:`${layer.w}%`,height:`${layer.h}%`,opacity:layer.opacity/100,"--textAnimSpeed":`${layer.type==="text"?layer.textAnimationSpeed:1.15}s`,"--letterDelay":`${layer.type==="text"?layer.textLetterDelay:.055}s`,"--shimmerSpeed":`${layer.type==="text"?layer.textShimmerSpeed:2.2}s`,"--burstSpeed":`${layer.type==="image"?layer.burstSpeed:.82}s`,"--layerAnimSpeed":`${layer.type==="image"?layer.imageAnimationSpeed:1.4}s`,pointerEvents:"none"} as CSSProperties;
@@ -17,17 +18,60 @@ export function OverlayClient({project:initialProject,publicId}:{project:Project
   const [project,setProject]=useState(initialProject);
   const [index,setIndex]=useState(0);
 
-  // Keep an already-open browser source/test URL synchronized with editor saves.
-  // Polling is intentionally lightweight and avoids requiring a realtime channel.
+  // Keep an already-open TikTok Studio/browser-source overlay synchronized with
+  // editor saves. Supabase Broadcast is the fast path; periodic polling and
+  // reconnect/visibility refreshes make the overlay self-healing if Realtime is
+  // interrupted by TikTok Studio, sleep, or a temporary network problem.
   useEffect(()=>{
     let cancelled=false;
-    const refresh=()=>fetch(`/api/o/${publicId}/status`,{cache:"no-store"})
-      .then(r=>r.json())
-      .then(r=>{if(cancelled)return;setActive(r.active===true);if(r.active===true&&r.project)setProject(r.project as Project)})
-      .catch(()=>{if(!cancelled)setActive(false)});
-    refresh();
-    const timer=window.setInterval(refresh,2000);
-    return()=>{cancelled=true;window.clearInterval(timer)};
+    let refreshing=false;
+
+    const refresh=async()=>{
+      if(cancelled||refreshing)return;
+      refreshing=true;
+      try{
+        const response=await fetch(`/api/o/${publicId}/status`,{cache:"no-store"});
+        if(!response.ok)return;
+        const next=await response.json();
+        if(cancelled)return;
+        setActive(next.active===true);
+        if(next.active===true&&next.project)setProject(next.project as Project);
+      }catch{
+        // Keep the last good overlay on screen during transient connectivity loss.
+      }finally{
+        refreshing=false;
+      }
+    };
+
+    void refresh();
+
+    const supabase=createSupabaseBrowserClient();
+    const channel=supabase
+      .channel(`overlay:${publicId}`)
+      .on("broadcast",{event:"project-updated"},()=>{void refresh();})
+      .subscribe(status=>{
+        // If the WebSocket reconnects after missing an event, immediately catch up.
+        if(status==="SUBSCRIBED")void refresh();
+      });
+
+    // Fallback only. Normal editor updates should arrive through Realtime almost
+    // immediately after the 700ms autosave completes.
+    const timer=window.setInterval(()=>{void refresh();},15000);
+    const onOnline=()=>{void refresh();};
+    const onVisibilityChange=()=>{if(document.visibilityState==="visible")void refresh();};
+    const onPageShow=()=>{void refresh();};
+    window.addEventListener("online",onOnline);
+    window.addEventListener("pageshow",onPageShow);
+    document.addEventListener("visibilitychange",onVisibilityChange);
+
+    return()=>{
+      cancelled=true;
+      window.clearInterval(timer);
+      window.removeEventListener("online",onOnline);
+      window.removeEventListener("pageshow",onPageShow);
+      document.removeEventListener("visibilitychange",onVisibilityChange);
+      void supabase.removeChannel(channel);
+    };
   },[publicId]);
 
   useEffect(()=>{
