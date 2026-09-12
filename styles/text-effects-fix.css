@@ -6,10 +6,42 @@
 .layerText.goldText .flowChar {
   color: transparent;
   -webkit-text-fill-color: transparent;
-  background-image: inherit;
-  background-size: inherit;
-  background-position: inherit;
-  background-repeat: inherit;
   -webkit-background-clip: text;
   background-clip: text;
+  background-repeat: no-repeat;
+}
+
+/* Animated text is split into transformed per-letter spans. Do not rely on
+   background-image: inherit here: Chromium can leave those transformed glyphs
+   transparent. Give each glyph the actual effect fill instead. */
+.layerText.customGradient .flowChar {
+  background-image: linear-gradient(var(--gradientAngle), var(--gradient1), var(--gradient2));
+  background-size: 100% 100%;
+}
+
+.layerText.rainbow .flowChar {
+  background-image: linear-gradient(90deg,#f00,#f90,#ff0,#00ff66,#00ccff,#6633ff,#f0f);
+  background-size: 300% 100%;
+  background-position: inherit;
+}
+
+.layerText.aurora .flowChar {
+  background-image: linear-gradient(120deg,#00eaff,#71ffb8,#fff,#b56cff,#ff8cff,#00aaff);
+  background-size: 300% 300%;
+  background-position: inherit;
+}
+
+.layerText.fireText .flowChar {
+  background-image: linear-gradient(180deg,#fff7a8,#ff9a00,#ff3300,#7a0000);
+  background-size: 100% 100%;
+}
+
+.layerText.iceText .flowChar {
+  background-image: linear-gradient(180deg,#fff,#b9f7ff,#20bdff);
+  background-size: 100% 100%;
+}
+
+.layerText.goldText .flowChar {
+  background-image: linear-gradient(180deg,#fff7bf,#ffd15a,#b87300);
+  background-size: 100% 100%;
 }
