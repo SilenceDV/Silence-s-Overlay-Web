@@ -1,0 +1,14 @@
+/* Both transparent FX surfaces cover the image interior and a larger travel region. */
+.layerBox>.layerClip{z-index:2}
+canvas.visualFX{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;max-width:none;max-height:none;background:transparent;opacity:1;border:0}
+canvas.visualFX[hidden]{display:none}
+canvas.visualFX.fxBehind{z-index:1}
+canvas.visualFX.fxFront{z-index:3}
+
+/* Opaque DOM menu: no OS select popup, opening animation or transparent first frame. */
+.editor-shell .legacy-controls button.visual-fx-select,button.visual-fx-select{width:100%;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;background:#24242d;color:#fff;font:400 13.3333px Inter,Arial,sans-serif;text-align:left;cursor:pointer;transition:none;transform:none;filter:none}
+.editor-shell .legacy-controls button.visual-fx-select:focus-visible,button.visual-fx-select:focus-visible{outline:2px solid rgba(0,170,255,.55);outline-offset:0}
+.visual-fx-menu{box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;padding:4px;border:1px solid #494953;border-radius:10px;background:#24242d;color:#fff;box-shadow:0 12px 28px #0008;font:400 13.3333px Inter,Arial,sans-serif;color-scheme:dark;animation:none;transition:none}
+.visual-fx-option{box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:32px;padding:7px 9px;border-radius:5px;cursor:pointer;background:#24242d;color:#fff;user-select:none}
+.visual-fx-option[aria-selected=true]{color:#8ad9ff;font-weight:600}
+.visual-fx-option.is-active{background:#34465d;color:#fff;outline:1px solid #6480a1;outline-offset:-1px}

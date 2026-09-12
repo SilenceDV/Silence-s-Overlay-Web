@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/server";
 import { enforceProjectEntitlements, getEntitlements } from "@/lib/billing/entitlements";
 import { apiError } from "@/lib/http";
+import { broadcastOverlayUpdate } from "@/lib/overlays/broadcastOverlayUpdate";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { projectSchema } from "@/lib/validation/projectSchemas";
 import { duplicateProject, normalizeProjectId } from "@/lib/projects/projectIds";
@@ -16,9 +17,20 @@ export async function PUT(request: Request, context: Context) {
     const user = await requireUser(); const id = normalizeProjectId((await context.params).id); const body = await request.json(); body.project.id=normalizeProjectId(body.project.id);const project = projectSchema.parse(body.project);
     if (project.id !== id) throw new Error("Project ID mismatch");
     enforceProjectEntitlements(project.slides.length, await getEntitlements(user.id));
-    const { data, error } = await createSupabaseAdminClient().from("projects").update({ name: project.name, data: project, version: Number(body.version) + 1, updated_at: new Date().toISOString() }).eq("id", id).eq("owner_id", user.id).eq("version", body.version).select("version,updated_at").maybeSingle();
+    const db = createSupabaseAdminClient();
+    const { data, error } = await db.from("projects").update({ name: project.name, data: project, version: Number(body.version) + 1, updated_at: new Date().toISOString() }).eq("id", id).eq("owner_id", user.id).eq("version", body.version).select("version,updated_at").maybeSingle();
     if (error) throw error;
-    if (!data) { const { data: current, error: lookupError } = await createSupabaseAdminClient().from("projects").select("version").eq("id", id).eq("owner_id", user.id).maybeSingle(); if (lookupError) throw lookupError; return NextResponse.json({ code: "STALE_VERSION", message: "A newer version of this project is already saved.", version: current?.version }, { status: 409 }); }
+    if (!data) { const { data: current, error: lookupError } = await db.from("projects").select("version").eq("id", id).eq("owner_id", user.id).maybeSingle(); if (lookupError) throw lookupError; return NextResponse.json({ code: "STALE_VERSION", message: "A newer version of this project is already saved.", version: current?.version }, { status: 409 }); }
+
+    // Tell any already-open TikTok Studio/browser-source overlay to refresh now.
+    // This is best-effort only; OverlayClient also keeps a polling fallback.
+    try {
+      const { data: overlay } = await db.from("overlays").select("public_id").eq("project_id", id).eq("owner_id", user.id).maybeSingle();
+      if (overlay?.public_id) await broadcastOverlayUpdate(overlay.public_id, Number(data.version));
+    } catch {
+      // A realtime notification failure must never turn a successful project save into an error.
+    }
+
     return NextResponse.json(data);
   } catch (error) { return apiError(error); }
 }

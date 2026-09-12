@@ -6,7 +6,7 @@ import { SaveCoordinator } from "@/lib/projects/saveCoordinator";
 import type { Project } from "@/types/editor";
 
 export function useAutosave(project: Project, dirty: boolean, projectId: string, initialVersion: number,
-  onSaving: () => void, onSaved: () => void, onError: (message?: string) => void) {
+  onSaving: () => void, onSaved: () => void, onError: (message?: string) => void, paused = false) {
   const revision = useRef(0);
   const callbacks = useRef({ onSaving, onSaved, onError });
   callbacks.current = { onSaving, onSaved, onError };
@@ -23,7 +23,7 @@ export function useAutosave(project: Project, dirty: boolean, projectId: string,
     // Clearing `dirty` from the saving callback is only a status update; it does
     // not supersede the snapshot already in flight. Only a new dirty snapshot
     // should advance the revision used to decide whether that save is current.
-    if (!dirty) return;
+    if (!dirty || paused) return;
 
     revision.current += 1;
     const current = revision.current;
@@ -32,7 +32,7 @@ export function useAutosave(project: Project, dirty: boolean, projectId: string,
       AUTOSAVE_DELAY,
     );
     return () => window.clearTimeout(timer);
-  }, [coordinator, project, dirty]);
+  }, [coordinator, project, dirty, paused]);
   useEffect(() => {
     // React Strict Mode replays effects in development. Restarting here keeps the
     // replayed setup usable while still preventing work after a real unmount.
