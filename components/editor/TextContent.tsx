@@ -1,65 +1,63 @@
 "use client";
 
-import React, {useLayoutEffect,useRef,type CSSProperties} from "react";
+import React, {useLayoutEffect,useMemo,useRef,type CSSProperties} from "react";
 import type {TextLayer} from "@/types/editor";
+import {measureTextGlyphs,splitTextGlyphs} from "@/lib/editor/textLayout";
 
-const segmenter=typeof Intl.Segmenter==="function"?new Intl.Segmenter(undefined,{granularity:"grapheme"}):null;
-const glyphs=(text:string)=>segmenter?Array.from(segmenter.segment(text),item=>item.segment):Array.from(text);
+const letterAnimations=new Set(["waveLetters","bounceLetters","typewriterLetters","glitchLetters","flickerLetters"]);
+function textStyle(layer:TextLayer):CSSProperties {
+  return {fontSize:layer.fontSize,"--textColor":layer.color,"--textStroke":`${layer.stroke}px`,
+    "--gradient1":layer.gradient1,"--gradient2":layer.gradient2,"--gradientAngle":`${layer.gradientAngle}deg`,
+    "--textAnimSpeed":`${layer.textAnimationSpeed}s`,"--letterDelay":`${layer.textLetterDelay}s`,"--shimmerSpeed":`${layer.textShimmerSpeed}s`
+  } as CSSProperties;
+}
 
-/** Movement owns the outer span; fill, stroke and clipped light own its glyph.
- * Both editor and hosted output use this component, including static text. */
-export function TextContent({layer}:{layer:TextLayer}) {
-  const root=useRef<HTMLDivElement>(null);
+/** This path deliberately has no glyph hooks, spans, or layout measurements. */
+function StaticText({layer}:{layer:TextLayer}) {
+  return <div className={`layerText textStatic ${layer.effect} ${layer.textAnimation}${layer.textShimmer?" staticShimmer":""}`}
+    style={textStyle(layer)} data-text={layer.textShimmer?layer.text:undefined}>{layer.text}</div>;
+}
+
+function AnimatedText({layer}:{layer:TextLayer}) {
+  const root=useRef<HTMLDivElement>(null),reference=useRef<HTMLSpanElement>(null);
+  const glyphs=useMemo(()=>splitTextGlyphs(layer.text),[layer.text]);
   useLayoutEffect(()=>{
-    const element=root.current;if(!element)return;
+    const element=root.current,source=reference.current;if(!element||!source)return;
     let disposed=false;
     const measure=()=>{
       if(disposed)return;
-      // offset geometry is in untransformed layout pixels: wave, breathing and
-      // StageViewport zoom must never alter a letter's section of the field.
-      const measurements=Array.from(element.querySelectorAll<HTMLElement>(".flowLine")).map(line=>({
-        line,width:line.offsetWidth,height:line.offsetHeight,
-        chars:Array.from(line.querySelectorAll<HTMLElement>(".flowChar")).map(char=>({char,x:char.offsetLeft,y:char.offsetTop,width:char.offsetWidth,height:char.offsetHeight}))
-      }));
-      for(const {line,width,height,chars} of measurements){
-        line.style.setProperty("--line-width",`${Math.max(1,width)}px`);
-        line.style.setProperty("--line-height",`${Math.max(1,height)}px`);
-        const rows=new Map<number,{left:number;right:number;height:number}>();
-        for(const p of chars){const row=rows.get(p.y);rows.set(p.y,{left:Math.min(row?.left??p.x,p.x),right:Math.max(row?.right??0,p.x+p.width),height:Math.max(row?.height??0,p.height)});}
-        for(const {char,x,y} of chars){
-          const row=rows.get(y)!;
-          char.style.setProperty("--glyph-x",`${x-row.left}px`);
-          char.style.setProperty("--glyph-y","0px");
-          char.style.setProperty("--line-width",`${Math.max(1,row.right-row.left)}px`);
-          char.style.setProperty("--line-height",`${Math.max(1,row.height)}px`);
-        }
-      }
+      const positions=measureTextGlyphs(source,glyphs);
+      const chars=element.querySelectorAll<HTMLElement>(".flowChar");
+      positions.forEach((p,i)=>{
+        const char=chars[i];if(!char)return;
+        char.style.left=`${p.x}px`;char.style.top=`${p.y}px`;
+        char.style.width=`${p.width}px`;char.style.height=`${p.height}px`;
+        char.style.setProperty("--glyph-x",`${p.fieldX}px`);
+        char.style.setProperty("--glyph-y","0px");
+        char.style.setProperty("--line-width",`${p.fieldWidth}px`);
+        char.style.setProperty("--line-height",`${p.height}px`);
+      });
+      element.setAttribute("data-measured","");
     };
     measure();
     const resize=typeof ResizeObserver!=="undefined"?new ResizeObserver(measure):null;
-    resize?.observe(element);
-    element.querySelectorAll(".flowLine").forEach(line=>resize?.observe(line));
+    resize?.observe(source);
     const fonts=document.fonts;
     void fonts?.ready.then(measure);
     fonts?.addEventListener("loadingdone",measure);
     return()=>{disposed=true;resize?.disconnect();fonts?.removeEventListener("loadingdone",measure);};
-  },[layer.text,layer.fontSize,layer.textAnimation]);
-  let index=0;
+  },[glyphs,layer.fontSize]);
+  return <div ref={root} className={`layerText animatedText ${layer.textAnimation}`} aria-label={layer.text} style={textStyle(layer)}>
+    {/* The continuous string reserves exactly the static layout, but never paints. */}
+    <span ref={reference} className="textMeasure" aria-hidden="true">{layer.text}</span>
+    {glyphs.map((glyph,i)=><span className="flowChar" aria-hidden="true" style={{"--i":i} as CSSProperties} key={glyph.start}>
+      <span className={`textGlyph ${layer.effect}${layer.textShimmer?" glyphShimmer":""}`} data-glyph={glyph.text}>{glyph.text}</span>
+    </span>)}
+  </div>;
+}
+
+/** Shared editor/hosted entry point. Changing paths unmounts all motion state. */
+export function TextContent({layer}:{layer:TextLayer}) {
   const boxStyle=layer.boxEnabled?{backgroundColor:`color-mix(in srgb, ${layer.boxColor} ${layer.boxOpacity}%, transparent)`,borderRadius:layer.boxRadius,padding:layer.boxPad}:undefined;
-  return <div style={boxStyle}><div ref={root} className={`layerText ${layer.textAnimation}${["none","breatheText"].includes(layer.textAnimation)?" textStatic":""}`} aria-label={layer.text} style={{
-    fontSize:layer.fontSize,"--textColor":layer.color,"--textStroke":`${layer.stroke}px`,
-    "--gradient1":layer.gradient1,"--gradient2":layer.gradient2,"--gradientAngle":`${layer.gradientAngle}deg`,
-    "--textAnimSpeed":`${layer.textAnimationSpeed}s`,"--letterDelay":`${layer.textLetterDelay}s`,"--shimmerSpeed":`${layer.textShimmerSpeed}s`
-  } as CSSProperties}>
-    {layer.text.split("\n").map((line,n)=>{
-      // A coordinated estimate also paints safely before client hydration/font
-      // loading; layout replaces it with actual widths before normal playback.
-      const advance=layer.fontSize*2,estimatedWidth=Math.max(1,glyphs(line).length*advance);
-      let column=0;
-      return <span className="flowLine" key={`${n}:${line}`} aria-hidden="true">
-      {line?line.match(/\S+|\s+/gu)!.map((word,w)=><span className="flowWord" key={w}>{glyphs(word).map((glyph,j)=><span className="flowChar" style={{"--i":index++,"--glyph-x":`${column++*advance}px`,"--glyph-y":"0px","--line-width":`${estimatedWidth}px`,"--line-height":`${layer.fontSize}px`} as CSSProperties} key={j}>
-        <span className={`textGlyph ${layer.effect}${layer.textShimmer?" glyphShimmer":""}`} data-glyph={glyph}>{glyph}</span>
-      </span>)}</span>):<br/>}
-    </span>})}
-  </div></div>;
+  return <div style={boxStyle}>{letterAnimations.has(layer.textAnimation)?<AnimatedText key="letters" layer={layer}/>:<StaticText key="static" layer={layer}/>}</div>;
 }
