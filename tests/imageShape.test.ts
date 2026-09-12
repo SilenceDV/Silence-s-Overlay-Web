@@ -55,3 +55,53 @@ it("handles CORS-tainted alpha reads without rejecting or altering the DOM image
  const result=loadImageShape("cors-fixture");holder.image.onload();expect(await result).toBeNull();
 });
 
+
+it.each(Object.entries(fixtures))("%s confetti fans immediately from its cropped lower silhouette",(_,source)=>{
+ const shape=projectImageShape(source,{...layer,cropX:23,cropY:-19})!;
+ const s=createFXScene({...layer,burstEffect:"fxConfetti"},"bottom",shape);
+ const left=Math.min(...shape.points.map(p=>p.x));
+ const bin=(x:number)=>Math.min(15,Math.floor((x-left)/shape.width*16));
+ for(const p of s.particles){
+  const bottom=Math.max(...shape.points.filter(q=>bin(q.x)===bin(p.x)).map(q=>q.y));
+  expect(p.y).toBeCloseTo(bottom);
+  expect(p.delay).toBeLessThan(.03);
+  expect(particleY(p,.06)).toBeLessThan(p.y);
+ }
+ const span=(xs:number[])=>Math.max(...xs)-Math.min(...xs);
+ expect(span(s.particles.map(p=>p.x))).toBeGreaterThan(shape.width*.8);
+ expect(span(s.particles.map(p=>particleX(p,.06)))).toBeGreaterThan(shape.width*.8);
+ expect(s.particles.filter(p=>p.front).length/s.particles.length).toBeGreaterThan(.6);
+ const broad=createFXScene({...layer,burstEffect:"fxConfetti",fxSpread:200},"bottom",shape);
+ expect(span(broad.particles.map(p=>particleX(p,.06)))).toBeGreaterThan(span(s.particles.map(p=>particleX(p,.06))));
+});
+it.each(Object.entries(fixtures))("%s electricity uses material contacts and brief restrained restrikes",(_,source)=>{
+ const shape=projectImageShape(source,layer)!;
+ for(const intensity of [50,100,150]){
+  const s=createFXScene({...layer,burstEffect:"fxElectric",fxIntensity:intensity},"contacts",shape);
+  const spread=createFXScene({...layer,burstEffect:"fxElectric",fxIntensity:intensity,fxSpread:200},"contacts",shape);
+  expect(s.arcs).toEqual(spread.arcs);
+  for(let t=0;t<1;t+=.005){
+   const active=s.arcs.filter(a=>t>=a.delay&&t<a.delay+a.life);
+   expect(active.length).toBeLessThanOrEqual(intensity>100?3:2);
+   expect(active.reduce((n,a)=>n+a.branches[0].length,0)).toBeLessThanOrEqual(1);
+  }
+  for(const arc of s.arcs){
+   expect(arc.front).toBe(true);expect(arc.life).toBeLessThan(.25);
+   expect(arc.delay+arc.life).toBeLessThan(1);
+   for(const frame of arc.frames){
+    for(const j of [0,frame.length-2])expect(shape.points.some(p=>Math.hypot(p.x-frame[j],p.y-frame[j+1])<.001)).toBe(true);
+   }
+  }
+ }
+});
+it.each(Object.entries(fixtures))("%s bolt segments do not bridge transparent holes or concave gaps",(_,source)=>{
+ const shape=projectImageShape(source,layer)!;
+ const s=createFXScene({...layer,burstEffect:"fxElectric",fxIntensity:150},"silhouette-routing",shape);
+ // Each source sample covers 5px in this 480px fixture; allow its half diagonal.
+ for(const arc of s.arcs)for(let f=0;f<arc.frames.length;f++)for(const path of [arc.frames[f],...arc.branches[f]]){
+  for(let j=2;j<path.length;j+=2)for(let t=0;t<=1;t+=.2){
+   const x=path[j-2]+(path[j]-path[j-2])*t,y=path[j-1]+(path[j+1]-path[j-1])*t;
+   expect(shape.points.some(p=>Math.hypot(p.x-x,p.y-y)<3.6)).toBe(true);
+  }
+ }
+});

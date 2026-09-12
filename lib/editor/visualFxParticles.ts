@@ -1,5 +1,6 @@
 import type { VisibleShape } from "./imageShape";
 import { createEmitters, type FXOrigin } from "./visualFxEmitters";
+import { createMaterialRouter } from "./visualFxMaterial";
 import type { ImageLayer } from "@/types/editor";
 import { particleEffect, type ParticleEffect } from "./visualFx";
 
@@ -174,13 +175,19 @@ export function createFXScene(layer: ImageLayer, seed = layer.id, shape?:Visible
         size:(i%3===0?range(4,8):range(1,2.5))*size,delay:range(.01,.47),life:range(.32,.53)});
     }
   } else if (effect === "fxConfetti") {
-    for (let i=0;i<count(44);i++) {
-      const o=emitters.sample("center",i);
+    for (let i=0;i<count(52);i++) {
+      const o=emitters.sample("bottomSilhouette",i);
+      // Wide launch lanes and immediate fan velocity: no delayed central jet.
+      // A few crossing pieces fill the body while outer lanes open sideways.
+      const fan=((i*.61803398875)%1)*2-1;
+      const outward=i%4===0?-Math.sign(o.nx):Math.sign(o.nx);
       add("confetti",i%3!==0,{x:o.x,y:o.y,originIndex:o.index,
-        vx:bell()*force*1.1,vy:-force*range(.5,1.7),gravity:650,drag:range(.5,1.1),sway:range(10,35),
-        size:range(5,12)*size,secondary:r()<.25,delay:range(0,.13),life:range(.74,.87),spin:range(-16,16)});
+        vx:unit*(outward*range(.35,.7)+fan*.55)*(.65+spread*.65),
+        vy:-unit*range(2.3,3.2),gravity:1350,drag:range(1.7,2.5),sway:range(5,15),
+        size:range(4.5,10)*size,secondary:r()<.25,delay:range(0,.028),life:range(.8,.94),spin:range(-14,14)});
     }
   } else if (effect === "fxElectric") {
+    const route=shape?createMaterialRouter(shape):undefined;
     const makePath = (sx:number,sy:number,ex:number,ey:number,roughness:number) => {
       const points=new Float32Array(66);points[0]=sx;points[1]=sy;points[64]=ex;points[65]=ey;
       for(let step=32;step>1;step/=2){for(let j=0;j<32;j+=step){const mid=j+step/2;
@@ -195,9 +202,10 @@ export function createFXScene(layer: ImageLayer, seed = layer.id, shape?:Visible
           points[j]=best.x;points[j+1]=best.y;
         }
       }
-      return points;
+      return route?route(points):points;
     };
-    for(let i=0;i<(intensity>0?6:0);i++) {
+    const trunks=intensity>1?3:2;
+    for(let i=0;i<(intensity>0?trunks*3:0);i++) {
       const front=true;
       let sx=0,sy=0,ex=0,ey=0;
       switch(i%4){
@@ -207,17 +215,37 @@ export function createFXScene(layer: ImageLayer, seed = layer.id, shape?:Visible
         default:sx=width*.43;sy=-height*.36;ex=-width*.4;ey=height*.39;
       }
       sx+=bell()*width*.06;sy+=bell()*height*.06;ex+=bell()*width*.06;ey+=bell()*height*.06;
-
+      if(shape){
+        // Select opposed contacts from the actual body. Direction is normalized
+        // by visible dimensions, so narrow/tall gifts retain crossing contacts.
+        const angle=[.35,1.8,-.65][i%3],dx=Math.cos(angle),dy=Math.sin(angle);
+        const offset=range(-.1,.1);
+        const contact=(side:number)=>{
+          let best=shape.points[0],score=-Infinity;
+          for(const p of shape.points){
+            const x=p.x/width,y=p.y/height;
+            const value=side*(x*dx+y*dy)-2.4*Math.abs(-x*dy+y*dx-offset);
+            if(value>score){score=value;best=p;}
+          }
+          return best;
+        };
+        const start=contact(-1),end=contact(1);sx=start.x;sy=start.y;ex=end.x;ey=end.y;
+      }
       const frames:Float32Array[]=[],branches:Float32Array[][]=[];
-      for(let frame=0;frame<7;frame++) {
-        const path=makePath(sx,sy,ex,ey,unit*.055);frames.push(path);
+      for(let frame=0;frame<4;frame++) {
+        const path=makePath(sx,sy,ex,ey,Math.min(width,height)*.1);frames.push(path);
         const twig:Float32Array[]=[];
-        for(const at of (i%3===0?[16]:[])) twig.push(makePath(path[at*2],path[at*2+1],path[at*2]+range(-.09,.09)*width,path[at*2+1]+range(-.09,.09)*height,unit*.025));
+        for(const at of (i%trunks===0?[Math.min(18,path.length/2-1)]:[])) twig.push(makePath(path[at*2],path[at*2+1],path[at*2]+range(-.07,.07)*width,path[at*2+1]+range(-.07,.07)*height,Math.min(width,height)*.018));
         branches.push(twig);
       }
-      scene.arcs.push({frames,branches,front,delay:.015+Math.floor(i/3)*.4,life:.36,thickness:range(.85,1.25)*size*proportion,phase:range(0,TAU)});
+      scene.arcs.push({frames,branches,front,delay:.012+Math.floor(i/trunks)*.29+(i%trunks)*.016,life:.23,
+        thickness:range(.75,1)*Math.min(1.35,size)*proportion,phase:range(0,TAU)});
     }
-    for(let i=0;i<count(12);i++)add("mote",i%4!==0,{x:bell()*width*.43,y:bell()*height*.4,vx:bell()*65,vy:bell()*65,gravity:0,drag:2,size:range(1,3)*size,delay:range(.02,.55),life:range(.12,.32)});
+    for(let i=0;i<count(6);i++){
+      const o=emitters.sample("surface",i);
+      add("mote",i%3!==0,{x:o.x,y:o.y,vx:bell()*unit*.08,vy:bell()*unit*.08,gravity:0,drag:3,
+        size:range(.8,1.5)*size,delay:range(.02,.65),life:range(.09,.16)});
+    }
   }
   scene.particles.sort((a,b)=>a.z-b.z);
   // Analytic conservative travel bounds, not PNG alpha/crop bounds. No particle canvas edge cuts.

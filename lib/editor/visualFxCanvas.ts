@@ -66,20 +66,21 @@ function traceArc(ctx:CanvasRenderingContext2D,a:Float32Array,b:Float32Array,ble
 }
 function electricity(ctx:CanvasRenderingContext2D,scene:FXScene,arc:Arc,time:number) {
   const t=(time-arc.delay)/arc.life;if(t<0||t>=1)return;
-  const frame=t*(arc.frames.length-1),index=Math.min(arc.frames.length-2,Math.floor(frame)),blend=frame-index;
-  const flicker=.58+.42*Math.sin(time*185+arc.phase)**2;
+  // Hold sharp paths between restrikes; morphing them produces rubbery webs
+  // and can sweep interpolated segments across transparent PNG holes.
+  const index=Math.min(arc.frames.length-1,Math.floor(t*arc.frames.length));
+  const flicker=.78+.22*Math.sin(time*145+arc.phase)**2;
   const alpha=scene.opacity*smooth(0,.025,t)*(1-smooth(.68,1,t))*flicker;
   const colors=scene.textures!.colors;
   ctx.lineCap="round";ctx.lineJoin="round";
   for(let branch=-1;branch<arc.branches[index].length;branch++){
     const a=branch<0?arc.frames[index]:arc.branches[index][branch];
-    const b=branch<0?arc.frames[index+1]:arc.branches[index+1][branch];
     const width=arc.thickness*(branch<0?1:.38),opacity=alpha*(branch<0?1:.65);
-    traceArc(ctx,a,b,blend,clamp(t/(branch<0?.18:.32)));
-    ctx.strokeStyle=colors[1];ctx.globalAlpha=clamp(opacity*.075);ctx.lineWidth=width*15;ctx.stroke();
-    ctx.globalAlpha=clamp(opacity*.22);ctx.lineWidth=width*5;ctx.stroke();
-    ctx.globalAlpha=clamp(opacity*.7);ctx.lineWidth=width*2;ctx.stroke();
-    ctx.strokeStyle=colors[0];ctx.globalAlpha=clamp(opacity);ctx.lineWidth=width*.65;ctx.stroke();
+    traceArc(ctx,a,a,0,clamp(t/(branch<0?.07:.16)));
+    ctx.strokeStyle=colors[1];ctx.globalAlpha=clamp(opacity*.1);ctx.lineWidth=width*13;ctx.stroke();
+    ctx.globalAlpha=clamp(opacity*.27);ctx.lineWidth=width*5;ctx.stroke();
+    ctx.strokeStyle=colors[0];ctx.globalAlpha=clamp(opacity*.75);ctx.lineWidth=width*1.9;ctx.stroke();
+    ctx.strokeStyle="#f5fcff";ctx.globalAlpha=clamp(opacity);ctx.lineWidth=width*.6;ctx.stroke();
   }
 }
 
