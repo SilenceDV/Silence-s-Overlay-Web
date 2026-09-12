@@ -4,6 +4,7 @@ import "@/styles/controls.css";
 import "@/styles/animations.css";
 import "@/styles/visual-fx.css";
 import "@/styles/editor.css";
+import "@/styles/text-effects-fix.css";
 import "@/styles/legacy-effects.css";
 import "@/styles/overlay.css";
 
