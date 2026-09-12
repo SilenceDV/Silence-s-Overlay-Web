@@ -1,3 +1,6 @@
+/* Per-letter text animations move each glyph independently. The non-solid
+   gradient must therefore be painted by the glyph itself, not by the parent
+   text element at the glyph's original position. */
 .layerText.customGradient .flowChar,
 .layerText.rainbow .flowChar,
 .layerText.aurora .flowChar,
@@ -11,9 +14,20 @@
   background-repeat: no-repeat;
 }
 
-/* Animated text is split into transformed per-letter spans. Do not rely on
-   background-image: inherit here: Chromium can leave those transformed glyphs
-   transparent. Give each glyph the actual effect fill instead. */
+/* When a per-letter animation is active, stop the parent from also painting
+   the gradient at the letters' unanimated/original positions. That duplicate
+   parent paint is what creates the black/empty-looking glyphs and stray color
+   blocks while the child spans move. Breathe is excluded because it animates
+   the whole text element instead of splitting/moving individual glyphs. */
+.layerText.customGradient:not(.none):not(.breatheText),
+.layerText.rainbow:not(.none):not(.breatheText),
+.layerText.aurora:not(.none):not(.breatheText),
+.layerText.fireText:not(.none):not(.breatheText),
+.layerText.iceText:not(.none):not(.breatheText),
+.layerText.goldText:not(.none):not(.breatheText) {
+  background-image: none !important;
+}
+
 .layerText.customGradient .flowChar {
   background-image: linear-gradient(var(--gradientAngle), var(--gradient1), var(--gradient2));
   background-size: 100% 100%;
