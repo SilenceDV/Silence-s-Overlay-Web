@@ -1,0 +1,15 @@
+.layerText.customGradient .flowChar,
+.layerText.rainbow .flowChar,
+.layerText.aurora .flowChar,
+.layerText.fireText .flowChar,
+.layerText.iceText .flowChar,
+.layerText.goldText .flowChar {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background-image: inherit;
+  background-size: inherit;
+  background-position: inherit;
+  background-repeat: inherit;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
