@@ -71,7 +71,7 @@ function electricity(ctx:CanvasRenderingContext2D,scene:FXScene,arc:Arc,time:num
   const alpha=scene.opacity*smooth(0,.025,t)*(1-smooth(.68,1,t))*flicker;
   const colors=scene.textures!.colors;
   ctx.lineCap="round";ctx.lineJoin="round";
-  for(let branch=-1;branch<2;branch++){
+  for(let branch=-1;branch<arc.branches[index].length;branch++){
     const a=branch<0?arc.frames[index]:arc.branches[index][branch];
     const b=branch<0?arc.frames[index+1]:arc.branches[index+1][branch];
     const width=arc.thickness*(branch<0?1:.38),opacity=alpha*(branch<0?1:.65);
@@ -106,20 +106,20 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
   if(!scene.textures)prepareFX(scene);
   const textures=scene.textures!,primary=textures.colors[0],secondary=textures.colors[1];
   ctx.save();ctx.translate(cw/2,ch/2);ctx.globalCompositeOperation="lighter";
-  if(!front&&effect==="fxImpact"){
-    pressureWave(ctx,scene,time);
+  if(effect==="fxImpact"){
+    if(!front&&scene.shockwaveOnly)pressureWave(ctx,scene,time);
     if(!scene.shockwaveOnly){
       const hit=smooth(0,.015,time)*(1-smooth(.035,.13,time));
       const expansion=1-Math.exp(-time*12),radius=Math.min(width,height)*(.3+expansion*.32)*scene.size;
-      for(const o of scene.origins){
-        light(ctx,textures.light[1],o.x,o.y,radius,smooth(0,.015,time)*Math.pow(1-time,3)*opacity*.19,.85);
-        light(ctx,textures.light[0],o.x,o.y,radius*.5,hit*opacity*.42);
+      for(const o of [{x:0,y:0}]){
+        light(ctx,textures.light[1],o.x,o.y,radius,smooth(0,.015,time)*Math.pow(1-time,3)*opacity*(front?.48:.19),.85);
+        light(ctx,textures.light[0],o.x,o.y,radius*.5,hit*opacity*(front?.85:.42));
       }
     }
   }else if(!front&&effect==="fxFireBurst"){
     const heat=smooth(0,.075,time)*(1-smooth(.35,.95,time));
-    light(ctx,textures.light[1],0,height*.25,Math.max(width,height)*.65,heat*opacity*.38,.7);
-    light(ctx,textures.light[0],0,height*.33,Math.max(width,height)*.38,heat*opacity*.42,.6);
+    light(ctx,textures.light[1],0,height*.25,Math.min(width,height)*.5,heat*opacity*.38,.7);
+    light(ctx,textures.light[0],0,height*.33,Math.min(width,height)*.3,heat*opacity*.42,.6);
   }else if(effect==="fxSpark"){
     const flare=smooth(0,.015,time)*Math.exp(-time*18)*opacity;
     for(const o of scene.origins)light(ctx,textures.light[1],o.x,o.y,front?18*scene.size:Math.min(width,height)*.18,flare*(front?.45:.18));
@@ -155,7 +155,7 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
       ctx.translate(x,y);ctx.rotate(p.rotation+Math.sin(p.phase+age*5)*.1);
       light(ctx,textures.light[1],0,r*.2,r*1.2,alpha*.13,1.5);
       ctx.globalCompositeOperation="source-over";
-      light(ctx,textures.flame[0][p.variant],0,0,r,alpha,1.7);
+      light(ctx,textures.flame[0][p.variant],0,-r*.9,r,alpha,1.7);
     }else if(p.kind==="shard"||p.kind==="debris")fragment(ctx,scene,p,x,y,t,alpha);
     else if(p.kind==="confetti"){
       ctx.translate(x,y);ctx.rotate(p.rotation+p.spin*age);ctx.scale(Math.cos(p.phase+age*11),1);
@@ -166,15 +166,7 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
       const twinkle=.55+.45*Math.sin(p.phase+age*17)**2;
       light(ctx,textures.light[p.secondary?1:0],x,y,p.size*(p.kind==="glint"?3:5),alpha*twinkle*(front?.4:.2));
       ctx.globalAlpha=clamp(alpha*twinkle);ctx.fillStyle=primary;
-      if(p.kind==="glint"&&effect==="fxMagic"){
-        // Rounded luminous beads with shaded rims read as small objects in depth.
-        const r=p.size*(.65+.35*Math.sin(t*Math.PI));
-        ctx.globalCompositeOperation="source-over";ctx.globalAlpha=clamp(alpha*twinkle);
-        const body=ctx.createRadialGradient(x-r*.3,y-r*.35,r*.05,x,y,r);
-        body.addColorStop(0,"#ffffff");body.addColorStop(.22,primary);body.addColorStop(.6,secondary);body.addColorStop(1,"#20243b");
-        ctx.fillStyle=body;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();
-        ctx.globalAlpha=clamp(alpha*.7);ctx.fillStyle="#ffffff";ctx.beginPath();ctx.arc(x-r*.3,y-r*.35,r*.16,0,TAU);ctx.fill();
-      }else if(p.kind==="glint"){
+      if(p.kind==="glint"){
         const r=p.size*(.3+.7*Math.sin(t*Math.PI));ctx.translate(x,y);ctx.rotate(p.rotation+age*.25);
         ctx.beginPath();ctx.moveTo(0,-r*1.5);ctx.quadraticCurveTo(r*.09,-r*.09,r,0);ctx.quadraticCurveTo(r*.09,r*.09,0,r*1.5);ctx.quadraticCurveTo(-r*.09,r*.09,-r,0);ctx.quadraticCurveTo(-r*.09,-r*.09,0,-r*1.5);ctx.fill();
       }else{ctx.beginPath();ctx.arc(x,y,p.size*(front?.4:.3),0,TAU);ctx.fill();}

@@ -82,3 +82,21 @@ it("does not reset backing dimensions for color, opacity, speed or replay change
   fireEvent.click(view.getByText("Replay FX"));
   expect(width).not.toHaveBeenCalled();expect(height).not.toHaveBeenCalled();
 });
+import * as imageShape from "@/lib/editor/imageShape";
+
+it("waits for alpha analysis and ignores an image result after replacement or unmount",async()=>{
+ const pending:Array<(shape:imageShape.ImageShape|null)=>void>=[];
+ vi.spyOn(imageShape,"loadImageShape").mockImplementation(()=>new Promise(resolve=>pending.push(resolve)));
+ const layer={...image(),imageUrl:"first.png"};const view=render(<VisualFX layer={layer}/>);
+ expect(frames.size).toBe(0);
+ view.rerender(<VisualFX layer={{...layer,imageUrl:"second.png"}}/>);
+ await act(async()=>pending[0](null));expect(frames.size).toBe(0);
+ await act(async()=>pending[1](null));expect(frames.size).toBe(1);
+ view.rerender(<VisualFX layer={{...layer,imageUrl:"third.png"}}/>);expect(frames.size).toBe(0);
+ view.unmount();await act(async()=>pending[2](null));expect(frames.size).toBe(0);
+});
+it("does not animate a fully transparent or fully cropped image",async()=>{
+ vi.spyOn(imageShape,"loadImageShape").mockResolvedValue({width:96,height:96,points:[],edges:[]});
+ await act(async()=>{render(<VisualFX layer={{...image(),imageUrl:"empty.png"}}/>)});
+ expect(frames.size).toBe(0);
+});

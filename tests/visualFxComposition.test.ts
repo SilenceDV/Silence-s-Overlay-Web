@@ -27,13 +27,14 @@ describe("effect-specific foreground composition",()=>{
     for(const arc of foreground){
       expect(arc.frames.some(path=>{for(let j=0;j<path.length;j+=2)if(Math.abs(path[j])<s.width*.2&&Math.abs(path[j+1])<s.height*.2)return true;return false})).toBe(true);
       expect(arc.frames[0]).not.toEqual(arc.frames[1]);
-      expect(arc.branches[0]).toHaveLength(2);
+      expect(arc.branches[0].length).toBeLessThanOrEqual(1);
     }
   });
-  it("emits independent spark sprays across the gift instead of one center or a perimeter wheel",()=>{
-    const s=scene("fxSpark"),sparks=s.particles;
-    expect(Math.max(...sparks.map(p=>p.x))-Math.min(...sparks.map(p=>p.x))).toBeGreaterThan(s.width*.7);
-    expect(Math.max(...sparks.map(p=>p.y))-Math.min(...sparks.map(p=>p.y))).toBeGreaterThan(s.height*.7);
+  it("emits 12–20 varied main sparks from the core through the gift",()=>{
+    const s=scene("fxSpark"),sparks=s.particles.filter(p=>p.delay<.13);
+    expect(sparks.length).toBeGreaterThanOrEqual(12);expect(sparks.length).toBeLessThanOrEqual(20);
+    expect(Math.max(...sparks.map(p=>p.x))-Math.min(...sparks.map(p=>p.x))).toBeLessThanOrEqual(s.width*.2);
+    expect(Math.max(...sparks.map(p=>p.y))-Math.min(...sparks.map(p=>p.y))).toBeLessThanOrEqual(s.height*.2);
     expect(new Set(sparks.map(p=>p.originIndex)).size).toBeGreaterThanOrEqual(6);
     expect(new Set(sparks.map(p=>`${Math.sign(p.vx)}:${Math.sign(p.vy)}`)).size).toBe(4);
     expect(overlapsBody("fxSpark").length).toBeGreaterThanOrEqual(3);
@@ -42,7 +43,7 @@ describe("effect-specific foreground composition",()=>{
   });
   it("stages impact pressure, foreground ejecta, and delayed residual sparks",()=>{
     const s=scene("fxImpact"),clouds=s.particles.filter(p=>p.kind==="blast"),debris=s.particles.filter(p=>p.kind==="debris");
-    expect(clouds.length).toBeGreaterThan(5);expect(clouds.every(p=>!p.front&&p.delay<.07)).toBe(true);
+    expect(clouds.length).toBeGreaterThan(5);expect(clouds.every(p=>p.delay<.07)).toBe(true);expect(clouds.some(p=>p.front)).toBe(true);expect(clouds.some(p=>!p.front)).toBe(true);
     expect(debris.length).toBeGreaterThan(0);expect(debris.every(p=>p.front&&p.delay>=.08)).toBe(true);
     expect(s.particles.some(p=>p.kind==="spark"&&p.delay>=.2)).toBe(true);
     expect(s.particles.every(p=>p.delay+p.life<=1.000001)).toBe(true);

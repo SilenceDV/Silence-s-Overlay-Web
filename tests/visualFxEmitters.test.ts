@@ -13,12 +13,13 @@ it("distributes perimeter emitters over all four edges without fixing points on 
   const e=createEmitters(500,300,seededRandom("edges")),points=Array.from({length:24},(_,i)=>e.sample("perimeter",i));
   for(const side of [points.filter(p=>p.x< -200),points.filter(p=>p.x>200),points.filter(p=>p.y< -120),points.filter(p=>p.y>120)])expect(side.length).toBeGreaterThanOrEqual(6);
 });
-it.each(["fxImpact","fxSpark","fxIceShatter"] as const)("%s uses at least six origins spanning the gift",burstEffect=>{
+it.each(["fxImpact","fxSpark","fxIceShatter"] as const)("%s emits its main action in the core with varied trajectories",burstEffect=>{
   const s=createFXScene({...defaultImage("",""),burstEffect,fxIntensity:100},"whole-gift");
   expect(s.origins).toHaveLength(6);
   expect(new Set(s.particles.map(p=>p.originIndex)).size).toBeGreaterThanOrEqual(6);
-  expect(Math.max(...s.particles.map(p=>p.x))-Math.min(...s.particles.map(p=>p.x))).toBeGreaterThan(s.width*.65);
-  expect(Math.max(...s.particles.map(p=>p.y))-Math.min(...s.particles.map(p=>p.y))).toBeGreaterThan(s.height*.65);
+  const main=s.particles.filter(p=>p.delay<.13);
+  expect(main.length).toBeGreaterThan(6);
+  expect(main.every(p=>Math.abs(p.x)<=s.width*.1&&Math.abs(p.y)<=s.height*.1)).toBe(true);
 });
 it("legacy shockwave is a rear effect, not an impact spray over the image",()=>{
   const s=createFXScene({...defaultImage("",""),burstEffect:"fxShockwave"});
@@ -30,8 +31,9 @@ it("foreground smoke uses every surface region instead of repeating three origin
  for(const seed of ["a","b","c"]){const s=createFXScene({...defaultImage("",""),burstEffect:"fxSmoke",fxIntensity:100},seed);
  expect(new Set(s.particles.filter(p=>p.front).map(p=>p.originIndex)).size).toBe(6)}
 });
-it("rear lightning routes collectively reach all four gift sides",()=>{
- const s=createFXScene({...defaultImage("",""),burstEffect:"fxElectric",fxIntensity:100},"all-sides");
- const endpoints=s.arcs.filter(a=>!a.front).flatMap(a=>{const p=a.frames[0];return [[p[0]/s.width,p[1]/s.height],[p[64]/s.width,p[65]/s.height]]});
- for(const side of [endpoints.some(([x])=>x<-.42),endpoints.some(([x])=>x>.42),endpoints.some(([,y])=>y<-.42),endpoints.some(([,y])=>y>.42)])expect(side).toBe(true);
+it("restrains electric to three foreground trunks and one short branch at a time",()=>{
+ const s=createFXScene({...defaultImage("",""),burstEffect:"fxElectric",fxIntensity:150},"all-sides");
+ for(let t=.04;t<.78;t+=.02){const active=s.arcs.filter(a=>t>=a.delay&&t<a.delay+a.life);
+ expect(active.length).toBeLessThanOrEqual(3);expect(active.every(a=>a.front)).toBe(true);
+ expect(active.reduce((n,a)=>n+a.branches[0].length,0)).toBeLessThanOrEqual(1);}
 });
