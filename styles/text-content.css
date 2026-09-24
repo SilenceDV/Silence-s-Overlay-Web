@@ -1,0 +1,44 @@
+/* Static text is continuous browser-shaped text. Only animated movers split. */
+.layerText{font-family:'Luckiest Guy',cursive;line-height:1;letter-spacing:2px;white-space:pre-wrap;text-align:center;position:relative;overflow:visible}
+.textMeasure{display:block;visibility:hidden;pointer-events:none}
+.flowChar{display:block;position:absolute;white-space:pre;text-align:left;transform-origin:center bottom}
+.animatedText:not([data-measured]) .flowChar{visibility:hidden;animation:none}
+.textGlyph{display:inline-block;position:relative;white-space:pre;color:var(--textColor);-webkit-text-fill-color:var(--textColor);-webkit-text-stroke:var(--textStroke) black;paint-order:stroke fill}
+.textGlyph:is(.gradient,.customGradient,.rainbow,.aurora,.fireText,.iceText,.goldText){color:transparent;-webkit-text-fill-color:transparent;background-clip:text;-webkit-background-clip:text;background-size:var(--line-width,100%) var(--line-height,1em);background-position:calc(-1 * var(--glyph-x,0px)) calc(-1 * var(--glyph-y,0px));background-repeat:repeat-x}
+.textGlyph:is(.gradient,.customGradient){background-image:linear-gradient(var(--gradientAngle),var(--gradient1),var(--gradient2))}
+/* Two identical full-spectrum periods. Moving exactly one line width loops
+   seamlessly while every letter samples its original place in the same field. */
+.textGlyph.rainbow{background-image:repeating-linear-gradient(90deg,#f00 0%,#f90 7.143%,#ff0 14.286%,#00ff66 21.429%,#00ccff 28.571%,#6633ff 35.714%,#f0f 42.857%,#f00 50%);background-size:calc(var(--line-width,1em) * 2) var(--line-height,1em);background-repeat:repeat-x;animation:glyphRainbow 3s linear infinite}
+.textGlyph.aurora{background-image:linear-gradient(120deg,#00eaff,#71ffb8,#fff,#b56cff,#ff8cff,#00aaff);background-size:calc(var(--line-width,1em) * 2) calc(var(--line-height,1em) * 2);animation:glyphAurora 4s ease-in-out infinite}
+.textGlyph.fireText{background-image:linear-gradient(180deg,#fff7a8,#ff9a00,#ff3300,#7a0000)}
+.textGlyph.iceText{background-image:linear-gradient(180deg,#fff,#b9f7ff,#20bdff)}
+.textGlyph.goldText{background-image:linear-gradient(180deg,#fff7bf,#ffd15a,#b87300)}
+/* Duplicate just this glyph for light, never the whole text box. No stroke on
+   the light copy: the base glyph supplies the sole outline inside its mover. */
+.textGlyph.glyphShimmer::after{content:attr(data-glyph);position:absolute;inset:0;pointer-events:none;color:transparent;-webkit-text-fill-color:transparent;-webkit-text-stroke:0;background-image:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.9) 50%,transparent 70%);background-clip:text;-webkit-background-clip:text;background-size:var(--line-width,1em) var(--line-height,1em);background-repeat:no-repeat;animation:glyphShimmer var(--shimmerSpeed,2.2s) ease-in-out infinite}
+.waveLetters .flowChar{animation:letterWave var(--textAnimSpeed) ease-in-out infinite;animation-delay:calc(var(--i)*var(--letterDelay))}
+.bounceLetters .flowChar{animation:letterBounce var(--textAnimSpeed) cubic-bezier(.18,.9,.35,1.35) infinite;animation-delay:calc(var(--i)*var(--letterDelay))}
+.glitchLetters .flowChar{animation:letterGlitch var(--textAnimSpeed) steps(2,end) infinite;animation-delay:calc(var(--i)*var(--letterDelay))}
+.flickerLetters .flowChar{animation:letterFlicker var(--textAnimSpeed) linear infinite;animation-delay:calc(var(--i)*var(--letterDelay))}
+.typewriterLetters .flowChar{opacity:0;animation:typewriterLetter .18s linear forwards;animation-delay:calc(var(--i)*var(--letterDelay))}
+.breatheText{animation:breatheText var(--textAnimSpeed) ease-in-out infinite}
+@keyframes glyphRainbow{from{background-position:calc(-1 * var(--glyph-x,0px)) calc(-1 * var(--glyph-y,0px))}to{background-position:calc(-1 * var(--glyph-x,0px) - var(--line-width,1em)) calc(-1 * var(--glyph-y,0px))}}
+@keyframes glyphAurora{0%,100%{background-position:calc(-1 * var(--glyph-x,0px)) calc(-1 * var(--glyph-y,0px))}50%{background-position:calc(-1 * var(--glyph-x,0px) - var(--line-width,1em)) calc(-1 * var(--glyph-y,0px) - var(--line-height,1em))}}
+@keyframes glyphShimmer{0%,18%{background-position:calc(-1 * var(--glyph-x,0px) - var(--line-width,1em)) calc(-1 * var(--glyph-y,0px));opacity:0}28%{opacity:1}62%{background-position:calc(-1 * var(--glyph-x,0px) + var(--line-width,1em)) calc(-1 * var(--glyph-y,0px));opacity:1}75%,100%{background-position:calc(-1 * var(--glyph-x,0px) + var(--line-width,1em)) calc(-1 * var(--glyph-y,0px));opacity:0}}
+
+/* The static element itself paints its continuous string. No glyph variables,
+   layout observer, or per-letter animation survives a switch back to None. */
+.textStatic{color:var(--textColor);-webkit-text-fill-color:var(--textColor);-webkit-text-stroke:var(--textStroke) black;paint-order:stroke fill}
+.textStatic:is(.gradient,.customGradient,.rainbow,.aurora,.fireText,.iceText,.goldText){color:transparent;-webkit-text-fill-color:transparent;background-clip:text;-webkit-background-clip:text;background-repeat:repeat-x}
+.textStatic:is(.gradient,.customGradient){background-image:linear-gradient(var(--gradientAngle),var(--gradient1),var(--gradient2))}
+.textStatic.rainbow{background-image:repeating-linear-gradient(90deg,#f00 0%,#f90 7.143%,#ff0 14.286%,#00ff66 21.429%,#00ccff 28.571%,#6633ff 35.714%,#f0f 42.857%,#f00 50%);background-size:200% 100%;animation:staticRainbow 3s linear infinite}
+.textStatic.aurora{background-image:linear-gradient(120deg,#00eaff,#71ffb8,#fff,#b56cff,#ff8cff,#00aaff);background-size:200% 200%;animation:staticAurora 4s ease-in-out infinite}
+.textStatic.fireText{background-image:linear-gradient(180deg,#fff7a8,#ff9a00,#ff3300,#7a0000)}
+.textStatic.iceText{background-image:linear-gradient(180deg,#fff,#b9f7ff,#20bdff)}
+.textStatic.goldText{background-image:linear-gradient(180deg,#fff7bf,#ffd15a,#b87300)}
+.textStatic.rainbow.breatheText{animation:staticRainbow 3s linear infinite,breatheText var(--textAnimSpeed) ease-in-out infinite}
+.textStatic.aurora.breatheText{animation:staticAurora 4s ease-in-out infinite,breatheText var(--textAnimSpeed) ease-in-out infinite}
+.textStatic.staticShimmer::after{content:attr(data-text);position:absolute;inset:0;white-space:inherit;pointer-events:none;color:transparent;-webkit-text-fill-color:transparent;-webkit-text-stroke:0;background-image:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.9) 50%,transparent 70%);background-clip:text;-webkit-background-clip:text;background-size:50% 100%;background-repeat:no-repeat;animation:staticShimmer var(--shimmerSpeed,2.2s) ease-in-out infinite}
+@keyframes staticRainbow{from{background-position:0% 0%}to{background-position:100% 0%}}
+@keyframes staticAurora{0%,100%{background-position:0% 0%}50%{background-position:100% 100%}}
+@keyframes staticShimmer{0%,18%{background-position:-100% 0%;opacity:0}28%{opacity:1}62%{background-position:200% 0%;opacity:1}75%,100%{background-position:200% 0%;opacity:0}}
