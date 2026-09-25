@@ -1980,6 +1980,20 @@ function decodeOverlayData(str){
   const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
   return JSON.parse(new TextDecoder().decode(bytes));
 }
+async function encodeCompressedOverlayData(obj){
+  const input=new TextEncoder().encode(JSON.stringify(obj));
+  const compressed=await new Response(new Blob([input]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+  const bytes=new Uint8Array(compressed);
+  let binary="";
+  for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  return btoa(binary).replaceAll("+","-").replaceAll("/","_").replace(/=+$/g,"");
+}
+async function decodeCompressedOverlayData(value){
+  const base64=value.replaceAll("-","+").replaceAll("_","/")+"=".repeat((4-value.length%4)%4);
+  const binary=atob(base64),bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+  const decompressed=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return JSON.parse(new TextDecoder().decode(decompressed));
+}
 function legacyProjectData(){
   return {
     version:7,
@@ -1988,12 +2002,8 @@ function legacyProjectData(){
   };
 }
 async function overlayURL(){
-  const previousProjectId=localStorage.getItem("SILENCE_LEGACY_HOSTED_PROJECT_ID");
-  const response=await fetch("/api/overlays/publish",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({legacyProject:legacyProjectData(),...(previousProjectId?{projectId:previousProjectId}:{})})});
-  const result=await response.json();
-  if(!response.ok)throw new Error(result.message||"Overlay publishing failed");
-  localStorage.setItem("SILENCE_LEGACY_HOSTED_PROJECT_ID",result.projectId);
-  return new URL(result.url,location.origin).href;
+  const encoded=await encodeCompressedOverlayData(legacyProjectData());
+  return location.href.split("?")[0].split("#")[0]+"?mode=overlay#compressed="+encoded;
 }
 async function copyOverlayURL(){
   try{const u=await overlayURL();await navigator.clipboard.writeText(u);$("saveStatus").textContent="Overlay URL copied ✓ Published version included in link."}
@@ -2131,6 +2141,19 @@ async function init(){
       if(!slides.length)throw new Error("Published overlay has no slides");
       currentIndex=0;selectedId="";renderAll(true);pushHistory();startOverlay();return;
     }catch(err){console.error(err);alert("Published overlay failed to load.");return}
+  }
+
+  if(location.hash.startsWith("#compressed=")){
+    try{
+      const data=await decodeCompressedOverlayData(location.hash.slice("#compressed=".length));
+      setSettings(Object.assign({speed:5,theme:"themeNone",preview:"previewClear"},data.settings||{}));
+      if(mode==="overlay")setPreview("previewClear",false);
+      slides=(data.slides||[]).map(normSlide);
+      if(!slides.length)slides=[defaultSlide()];
+      currentIndex=0;selectedId=mode==="overlay"?"":(slides[0].layers[0]?.id||"");renderAll(true);pushHistory();
+      if(mode==="overlay")startOverlay();
+      return;
+    }catch(err){console.error(err);alert("Compressed overlay data failed to load. Copy the overlay URL again from the maker.")}
   }
 
   if(location.hash.startsWith("#data=")){
