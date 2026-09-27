@@ -18,7 +18,9 @@ it("remounts shared FX on every hosted slide appearance and preserves it on unch
   project.slides=[{...project.slides[0],id:"first",layers:[layer]},{...project.slides[0],id:"second",layers:[{...layer}]}];
   const fetcher=vi.fn(async()=>({ok:true,json:async()=>({active:true,project:structuredClone(project)})}));vi.stubGlobal("fetch",fetcher);
   render(<OverlayClient project={project} publicId="test"/>);
-  await act(async()=>{await Promise.resolve()});expect(mounts).toHaveBeenCalledTimes(1);
+  await act(async()=>{await Promise.resolve()});
+  expect(mounts).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(VisualFX).mock.calls[0]?.[0]).toEqual(expect.objectContaining({performance:"hosted"}));
   await act(async()=>{connection.refresh?.();await Promise.resolve()});expect(mounts).toHaveBeenCalledTimes(1);
   await act(async()=>{vi.advanceTimersByTime(1000)});expect(mounts).toHaveBeenCalledTimes(2);
   await act(async()=>{vi.advanceTimersByTime(1000)});expect(mounts).toHaveBeenCalledTimes(3);
