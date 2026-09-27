@@ -1,7 +1,7 @@
 import {afterEach,expect,it,vi} from "vitest";
 import {defaultImage} from "@/lib/editor/defaults";
 import {fxOptions} from "@/lib/editor/visualFx";
-import {createFXScene,drawFX,prepareFX} from "@/lib/editor/visualFxCanvas";
+import {canvasResolution,createFXScene,drawFX,prepareFX,HOSTED_FX_CANVAS_PROFILE} from "@/lib/editor/visualFxCanvas";
 function context(canvas:HTMLCanvasElement) {
   return {canvas,fillStyle:"#ffffff",strokeStyle:"#ffffff",globalAlpha:1,
     createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),
@@ -25,4 +25,13 @@ it.each(fxOptions)("%s retains textures during frames and clears after its lifet
   drawFX(ctx as unknown as CanvasRenderingContext2D,s,1,false);
   drawFX(ctx as unknown as CanvasRenderingContext2D,s,1,true);
   expect(ctx.clearRect).toHaveBeenCalledTimes(2);expect(ctx.drawImage).not.toHaveBeenCalled();expect(ctx.stroke).not.toHaveBeenCalled();
+});
+
+it("keeps hosted VFX canvases inside the lower rendering budget",()=>{
+  const full=canvasResolution(1920,1080,2);
+  const hosted=canvasResolution(1920,1080,2,HOSTED_FX_CANVAS_PROFILE);
+  expect(hosted.width).toBeLessThan(full.width);
+  expect(hosted.height).toBeLessThan(full.height);
+  expect(hosted.width).toBeLessThanOrEqual(HOSTED_FX_CANVAS_PROFILE.maxLongEdge);
+  expect(hosted.width*hosted.height).toBeLessThanOrEqual(HOSTED_FX_CANVAS_PROFILE.maxPixels);
 });
