@@ -4,10 +4,13 @@ export { createFXScene, seededRandom } from "./visualFxParticles";
 export type { FXScene } from "./visualFxParticles";
 export { prepareFX } from "./visualFxTextures";
 
-export const MAX_FX_PIXELS = 1_000_000;
-export function canvasResolution(width: number, height: number, dpr: number) {
-  const scale = Math.min(1.5, Math.max(.1, dpr), 1536 / Math.max(width, height), Math.sqrt(MAX_FX_PIXELS / (width * height)));
-  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
+export type FXCanvasProfile = {maxDpr:number;maxLongEdge:number;maxPixels:number};
+export const DEFAULT_FX_CANVAS_PROFILE:FXCanvasProfile = {maxDpr:1.5,maxLongEdge:1536,maxPixels:1_000_000};
+export const HOSTED_FX_CANVAS_PROFILE:FXCanvasProfile = {maxDpr:1,maxLongEdge:1152,maxPixels:450_000};
+export function canvasResolution(width: number, height: number, dpr: number, profile:FXCanvasProfile=DEFAULT_FX_CANVAS_PROFILE) {
+  const safeWidth=Math.max(1,width),safeHeight=Math.max(1,height);
+  const scale = Math.min(profile.maxDpr, Math.max(.1, dpr), profile.maxLongEdge / Math.max(safeWidth, safeHeight), Math.sqrt(profile.maxPixels / (safeWidth * safeHeight)));
+  return { width: Math.max(1, Math.floor(safeWidth * scale)), height: Math.max(1, Math.floor(safeHeight * scale)) };
 }
 const TAU=Math.PI*2;
 const clamp=(n:number)=>Math.max(0,Math.min(1,n));
