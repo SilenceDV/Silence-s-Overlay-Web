@@ -2,11 +2,11 @@
 
 import { useLayoutEffect, useRef, type ReactElement } from "react";
 import type { ImageLayer } from "@/types/editor";
-import { canvasResolution, createFXScene, drawFX, prepareFX } from "@/lib/editor/visualFxCanvas";
+import { canvasResolution, createFXScene, drawFX, prepareFX, HOSTED_FX_CANVAS_PROFILE } from "@/lib/editor/visualFxCanvas";
 import {loadImageShape,projectImageShape,type VisibleShape} from "@/lib/editor/imageShape";
 import { useFXReplay } from "./FXReplay";
 
-export function VisualFX({ layer, preview = false }: { layer: ImageLayer; preview?: boolean }): ReactElement | null {
+export function VisualFX({ layer, preview = false, performance = "editor" }: { layer: ImageLayer; preview?: boolean; performance?: "editor"|"hosted" }): ReactElement | null {
   const behind = useRef<HTMLCanvasElement>(null), front = useRef<HTMLCanvasElement>(null);
   const replay = useFXReplay();
   const version = useRef(0);
@@ -39,7 +39,8 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
     // Prepare offscreen assets before touching either displayed surface.
     prepareFX(scene);
     const width = scene.width + scene.padding * 2, height = scene.height + scene.padding * 2;
-    const resolution = canvasResolution(width, height, window.devicePixelRatio || 1);
+    const hosted=performance==="hosted";
+    const resolution = canvasResolution(width, height, window.devicePixelRatio || 1, hosted?HOSTED_FX_CANVAS_PROFILE:undefined);
     for (const canvas of [back, fore]) {
       // Assigning width/height clears and reallocates a Canvas backing store, even
       // when the value is unchanged. Colors, opacity and replay never need that.
@@ -52,10 +53,15 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
     drawFX(backCtx, scene, 0, false); drawFX(frontCtx, scene, 0, true);
     const duration = Math.max(.2, Math.min(8, burstSpeed)) * 1000;
     let start: number | null = null;
+    let lastDraw=0;
+    const frameInterval=hosted?1000/30:0;
     const tick = (now: number) => {
-      if (start === null) start = now;
+      if (start === null) { start = now; if(hosted)lastDraw=now; }
       const time = (now - start) / duration;
-      drawFX(backCtx, scene, time, false); drawFX(frontCtx, scene, time, true);
+      if(!hosted||now-lastDraw>=frameInterval||time>=1){
+        drawFX(backCtx, scene, time, false); drawFX(frontCtx, scene, time, true);
+        lastDraw=now;
+      }
       frame = time < 1 ? requestAnimationFrame(tick) : null;
     };
     frame = requestAnimationFrame(tick);
@@ -72,6 +78,6 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
     document.addEventListener("visibilitychange", visibility);
     motion?.addEventListener("change", reduced);
     return () => { disposed=true;stop(); document.removeEventListener("visibilitychange", visibility); motion?.removeEventListener("change", reduced); };
-  }, [id, burstEffect, burstSpeed, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h, imageUrl, imageWidth, imageHeight, cropX, cropY, cropZoom, replayVersion]);
+  }, [id, burstEffect, burstSpeed, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h, imageUrl, imageWidth, imageHeight, cropX, cropY, cropZoom, replayVersion, performance]);
   return <><canvas ref={behind} width={1} height={1} hidden={burstEffect === "none"} aria-hidden="true" className="visualFX fxBehind"/><canvas ref={front} width={1} height={1} hidden={burstEffect === "none"} aria-hidden="true" className="visualFX fxFront"/></>;
 }
