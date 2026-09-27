@@ -100,3 +100,16 @@ it("does not animate a fully transparent or fully cropped image",async()=>{
  await act(async()=>{render(<VisualFX layer={{...image(),imageUrl:"empty.png"}}/>)});
  expect(frames.size).toBe(0);
 });
+
+it("throttles hosted VFX draws while keeping real-time animation progress",()=>{
+  const layer=image();
+  render(<VisualFX layer={layer} performance="hosted"/>);
+  expect(vi.mocked(drawFX)).toHaveBeenCalledTimes(2);
+  vi.mocked(drawFX).mockClear();
+  advance(0);
+  expect(vi.mocked(drawFX)).not.toHaveBeenCalled();
+  advance(16);
+  expect(vi.mocked(drawFX)).not.toHaveBeenCalled();
+  advance(34);
+  expect(vi.mocked(drawFX)).toHaveBeenCalledTimes(2);
+});
