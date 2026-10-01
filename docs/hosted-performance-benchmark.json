@@ -1,0 +1,357 @@
+{
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+  "devicePixelRatio": 1,
+  "results": [
+    {
+      "effect": "fxImpact",
+      "before": {
+        "name": "before",
+        "setupMs": 39.90000000037253,
+        "rasterMs": 1.2283333333519597,
+        "samples": [
+          3.8066666666728755,
+          1.2183333333271245,
+          1.2283333333519597,
+          1.213333333314707,
+          1.2983333333395422
+        ],
+        "counts": {
+          "gradients": 368,
+          "pathCommands": 8464,
+          "drawImages": 5302
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 14.599999999627471,
+        "rasterMs": 1.1666666666666667,
+        "samples": [
+          1.3716666666480402,
+          1.1666666666666667,
+          1.1533333333519598,
+          1.1566666666418315,
+          1.1833333333333333
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 5670
+        }
+      },
+      "meanAbsoluteChannelDifference": 0.005198904899981844,
+      "maxChannelDifference": 170
+    },
+    {
+      "effect": "fxSpark",
+      "before": {
+        "name": "before",
+        "setupMs": 0.10000000149011612,
+        "rasterMs": 0.8883333333457509,
+        "samples": [
+          1.0299999999813736,
+          0.8883333333457509,
+          0.875,
+          0.9066666666728754,
+          0.8333333333333334
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 4342
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 0,
+        "rasterMs": 0.9,
+        "samples": [
+          0.9666666666666667,
+          0.8583333333333333,
+          0.9,
+          0.936666666654249,
+          0.8449999999875824
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 4342
+        }
+      },
+      "meanAbsoluteChannelDifference": 0,
+      "maxChannelDifference": 0
+    },
+    {
+      "effect": "fxMagic",
+      "before": {
+        "name": "before",
+        "setupMs": 0.09999999962747097,
+        "rasterMs": 0.8566666666418314,
+        "samples": [
+          1.1083333333333334,
+          0.8083333333333333,
+          0.8983333333395421,
+          0.7716666666790843,
+          0.8566666666418314
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 233,
+          "drawImages": 637
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 0,
+        "rasterMs": 0.836666666654249,
+        "samples": [
+          0.8733333333395421,
+          0.836666666654249,
+          0.8183333333271245,
+          0.8700000000186264,
+          0.8033333333209157
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 233,
+          "drawImages": 637
+        }
+      },
+      "meanAbsoluteChannelDifference": 0,
+      "maxChannelDifference": 0
+    },
+    {
+      "effect": "fxConfetti",
+      "before": {
+        "name": "before",
+        "setupMs": 0,
+        "rasterMs": 0.2,
+        "samples": [
+          0.2,
+          0.225,
+          0.19166666666666668,
+          0.2,
+          0.2283333333519598
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 1464,
+          "drawImages": 0
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 0,
+        "rasterMs": 0.21999999998758238,
+        "samples": [
+          0.2550000000124176,
+          0.2183333333271245,
+          0.24833333333954216,
+          0.21999999998758238,
+          0.2150000000062088
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 1464,
+          "drawImages": 0
+        }
+      },
+      "meanAbsoluteChannelDifference": 0,
+      "maxChannelDifference": 0
+    },
+    {
+      "effect": "fxElectric",
+      "before": {
+        "name": "before",
+        "setupMs": 0.09999999962747097,
+        "rasterMs": 0.8066666666728755,
+        "samples": [
+          1.5583333333333333,
+          0.8016666666604578,
+          0.9050000000124176,
+          0.8016666666604578,
+          0.8066666666728755
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 3873,
+          "drawImages": 41
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 0.2999999988824129,
+        "rasterMs": 0.8099999999937911,
+        "samples": [
+          0.7316666666728755,
+          0.8233333333395422,
+          0.8099999999937911,
+          0.8150000000062089,
+          0.8
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 210,
+          "drawImages": 41
+        }
+      },
+      "meanAbsoluteChannelDifference": 0,
+      "maxChannelDifference": 0
+    },
+    {
+      "effect": "fxSmoke",
+      "before": {
+        "name": "before",
+        "setupMs": 9.899999998509884,
+        "rasterMs": 0.7099999999937912,
+        "samples": [
+          0.7800000000124176,
+          0.6799999999813735,
+          0.7650000000062088,
+          0.7099999999937912,
+          0.6650000000062088
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 1345
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 9.5,
+        "rasterMs": 0.7,
+        "samples": [
+          0.7449999999875824,
+          0.7,
+          0.7,
+          0.688333333345751,
+          0.6833333333333333
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 1345
+        }
+      },
+      "meanAbsoluteChannelDifference": 0,
+      "maxChannelDifference": 0
+    },
+    {
+      "effect": "fxFireBurst",
+      "before": {
+        "name": "before",
+        "setupMs": 13.200000001117587,
+        "rasterMs": 0.8716666666790843,
+        "samples": [
+          0.95,
+          0.8983333333395421,
+          0.838333333345751,
+          0.8716666666790843,
+          0.8299999999813735
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 2670
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 14.5,
+        "rasterMs": 0.8449999999875824,
+        "samples": [
+          0.9483333333395422,
+          0.8449999999875824,
+          0.8950000000186265,
+          0.811666666654249,
+          0.8449999999875824
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 0,
+          "drawImages": 2670
+        }
+      },
+      "meanAbsoluteChannelDifference": 0,
+      "maxChannelDifference": 0
+    },
+    {
+      "effect": "fxIceShatter",
+      "before": {
+        "name": "before",
+        "setupMs": 0,
+        "rasterMs": 1.5899999999751648,
+        "samples": [
+          2.1066666666728753,
+          1.588333333314707,
+          1.5433333333581687,
+          1.5899999999751648,
+          1.65
+        ],
+        "counts": {
+          "gradients": 1195,
+          "pathCommands": 27923,
+          "drawImages": 1633
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 0.6999999992549419,
+        "rasterMs": 1.4683333333581685,
+        "samples": [
+          1.8216666666480401,
+          1.45,
+          1.4716666666790843,
+          1.4299999999813735,
+          1.4683333333581685
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 438,
+          "drawImages": 2828
+        }
+      },
+      "meanAbsoluteChannelDifference": 0.016872688509986637,
+      "maxChannelDifference": 145
+    },
+    {
+      "effect": "fxShockwave",
+      "before": {
+        "name": "before",
+        "setupMs": 0,
+        "rasterMs": 0.9133333333147069,
+        "samples": [
+          1.1700000000186264,
+          0.9049999999813736,
+          0.9866666666852931,
+          0.9133333333147069,
+          0.901666666691502
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 4131,
+          "drawImages": 413
+        }
+      },
+      "after": {
+        "name": "after",
+        "setupMs": 0.19999999925494194,
+        "rasterMs": 0.9233333333395422,
+        "samples": [
+          1.0200000000186265,
+          0.8766666666604579,
+          0.9233333333395422,
+          0.9633333333147068,
+          0.9183333333271245
+        ],
+        "counts": {
+          "gradients": 0,
+          "pathCommands": 4131,
+          "drawImages": 413
+        }
+      },
+      "meanAbsoluteChannelDifference": 0.000012929078582105488,
+      "maxChannelDifference": 128
+    }
+  ]
+}

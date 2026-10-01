@@ -1,4 +1,4 @@
-import { seededRandom, type FXScene } from "./visualFxParticles";
+import { seededRandom, type FXScene, type Particle } from "./visualFxParticles";
 
 // Textures are made once per palette/variant and retained by each active scene.
 // Volume detail is painted into small bitmaps instead of using per-frame filters.
@@ -86,6 +86,7 @@ function streak(primary:string,secondary:string) {
   });
 }
 export function prepareFX(scene:FXScene) {
+  if(scene.textures)return;
   // Let Canvas normalize valid CSS colors and safely reject malformed imported strings.
   const probe=document.createElement("canvas").getContext("2d")!;
   probe.fillStyle="#ffffff";probe.fillStyle=scene.primary;const primary=probe.fillStyle;
@@ -96,4 +97,48 @@ export function prepareFX(scene:FXScene) {
     flame:scene.effect==="fxFireBurst"?[[0,1,2].map(v=>flame(primary,secondary,v))]:[],
     streak:scene.particles.some(p=>p.kind==="spark")?[streak(primary,secondary),streak(primary,secondary)]:[],
   };
+  scene.planes=[scene.particles.filter(p=>!p.front),scene.particles.filter(p=>p.front)];
+  if(scene.shockwaveOnly){
+    const phase=scene.origins[0].nx*13;
+    scene.wave=new Float32Array(162);
+    for(let i=0;i<=80;i++){
+      const angle=i/80*Math.PI*2,warp=1+.025*Math.sin(angle*5+phase)+.015*Math.sin(angle*9-phase);
+      scene.wave[i*2]=Math.cos(angle)*warp;scene.wave[i*2+1]=Math.sin(angle)*warp;
+    }
+  }
+  if(scene.hosted)for(const p of scene.particles){
+    if(p.kind==="shard"||p.kind==="debris")prepareFragment(p,primary,secondary);
+    if(p.kind==="confetti"){
+      p.confettiColor=p.secondary?secondary:p.phase<2?primary:`hsl(${Math.round(p.phase*57)},85%,65%)`;
+    }
+  }
+  if(scene.hosted&&typeof Path2D!=="undefined")for(const arc of scene.arcs){
+    arc.paths=arc.frames.map((frame,index)=>[frame,...arc.branches[index]].map(points=>{
+      const path=new Path2D();path.moveTo(points[0],points[1]);
+      for(let i=2;i<points.length;i+=2)path.lineTo(points[i],points[i+1]);return path;
+    }));
+  }
+}
+
+function prepareFragment(p:Particle,primary:string,secondary:string){
+  const ice=p.kind==="shard",radius=Math.ceil(p.size*2+2);
+  // Scene-owned, bounded bitmaps; never retained in the shared palette cache.
+  const canvas=document.createElement("canvas");
+  const pixels=Math.min(256,Math.max(8,radius*4));canvas.width=canvas.height=pixels;
+  const ctx=canvas.getContext("2d")!;ctx.scale(pixels/(radius*2),pixels/(radius*2));ctx.translate(radius,radius);
+  const face=ctx.createLinearGradient(-p.size,-p.size,p.size,p.size);
+  if(ice){face.addColorStop(0,primary);face.addColorStop(.28,secondary);face.addColorStop(.49,primary);face.addColorStop(.55,secondary);face.addColorStop(1,"#143445");}
+  else{face.addColorStop(0,secondary);face.addColorStop(.26,"#50443e");face.addColorStop(1,"#16171c");}
+  ctx.fillStyle=face;ctx.beginPath();
+  for(let i=0;i<p.shape.length;i+=2){if(i===0)ctx.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);else ctx.lineTo(p.shape[i]*p.size,p.shape[i+1]*p.size);}
+  ctx.closePath();ctx.fill();p.face=canvas;p.faceRadius=radius;
+  if(typeof Path2D!=="undefined"){
+    p.bevelPaths=[];
+    for(let i=0;i<p.shape.length;i+=2){
+      const next=(i+2)%p.shape.length,path=new Path2D();
+      path.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);path.lineTo(p.shape[next]*p.size,p.shape[next+1]*p.size);
+      path.lineTo(-p.size*.16,-p.size*.12);path.closePath();p.bevelPaths.push(path);
+    }
+    const edge=new Path2D();edge.moveTo(p.shape[0]*p.size,p.shape[1]*p.size);edge.lineTo(p.shape[2]*p.size,p.shape[3]*p.size);edge.lineTo(0,0);p.outlinePath=edge;
+  }
 }

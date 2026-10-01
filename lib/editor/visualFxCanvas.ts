@@ -18,7 +18,7 @@ function light(ctx:CanvasRenderingContext2D,texture:HTMLCanvasElement,x:number,y
 }
 function spark(ctx:CanvasRenderingContext2D,scene:FXScene,p:Particle,x:number,y:number,age:number,alpha:number) {
   const textures=scene.textures!,size=p.size*particleScale(p,age)*(p.front?1:1.3);
-  const tailAge=Math.max(0,age-p.trail),segments=p.trail>.035?5:1;
+  const tailAge=Math.max(0,age-p.trail),segments=p.trail>.035?(scene.trailSamples??5):1;
   const texture=textures.streak[p.secondary?1:0];
   // Sample the actual drag/gravity/sway trajectory, preserving the taper along it.
   let tx=particleX(p,tailAge),ty=particleY(p,tailAge);
@@ -40,24 +40,29 @@ function fragment(ctx:CanvasRenderingContext2D,scene:FXScene,p:Particle,x:number
   ctx.translate(x,y);ctx.rotate(p.rotation+p.spin*t);
   ctx.scale(.3+Math.abs(Math.cos(p.phase+t*5))*.7,.78+.22*Math.cos(p.phase+t*3));
   ctx.globalAlpha=clamp(alpha);
+  if(p.face){const r=p.faceRadius!;ctx.drawImage(p.face,-r,-r,r*2,r*2);}
+  else {
   const face=ctx.createLinearGradient(-p.size,-p.size,p.size,p.size);
   if(ice){face.addColorStop(0,primary);face.addColorStop(.28,secondary);face.addColorStop(.49,primary);face.addColorStop(.55,secondary);face.addColorStop(1,"#143445");}
   else{face.addColorStop(0,secondary);face.addColorStop(.26,"#50443e");face.addColorStop(1,"#16171c");}
   ctx.fillStyle=face;ctx.beginPath();
   for(let i=0;i<p.shape.length;i+=2){if(i===0)ctx.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);else ctx.lineTo(p.shape[i]*p.size,p.shape[i+1]*p.size);}
   ctx.closePath();ctx.fill();
+  }
   // Lit, beveled faces turn around an offset ridge, giving fragments thickness.
   const ridgeX=-p.size*.16,ridgeY=-p.size*.12,lightAngle=p.phase+t*7;
   for(let i=0;i<p.shape.length;i+=2){
     const next=(i+2)%p.shape.length,shade=.5+.5*Math.cos(i*.8+lightAngle);
-    ctx.beginPath();ctx.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);
-    ctx.lineTo(p.shape[next]*p.size,p.shape[next+1]*p.size);ctx.lineTo(ridgeX,ridgeY);ctx.closePath();
-    ctx.globalAlpha=clamp(alpha*(ice?.38:.55));ctx.fillStyle=shade>.55?primary:ice?"#123646":"#100d13";ctx.fill();
+    if(!p.bevelPaths){ctx.beginPath();ctx.moveTo(p.shape[i]*p.size,p.shape[i+1]*p.size);
+      ctx.lineTo(p.shape[next]*p.size,p.shape[next+1]*p.size);ctx.lineTo(ridgeX,ridgeY);ctx.closePath();}
+    ctx.globalAlpha=clamp(alpha*(ice?.38:.55));ctx.fillStyle=shade>.55?primary:ice?"#123646":"#100d13";
+    if(p.bevelPaths)ctx.fill(p.bevelPaths[i/2]);else ctx.fill();
   }
   // Specular edge changes as the fragment tumbles; dark faces keep volume readable.
   const reflection=.2+.8*Math.max(0,Math.sin(p.phase+t*11));ctx.globalAlpha=clamp(alpha*reflection);
   ctx.strokeStyle=ice?primary:secondary;ctx.lineWidth=ice?1:.8;
-  ctx.beginPath();ctx.moveTo(p.shape[0]*p.size,p.shape[1]*p.size);ctx.lineTo(p.shape[2]*p.size,p.shape[3]*p.size);ctx.lineTo(0,0);ctx.stroke();
+  if(p.outlinePath)ctx.stroke(p.outlinePath);
+  else{ctx.beginPath();ctx.moveTo(p.shape[0]*p.size,p.shape[1]*p.size);ctx.lineTo(p.shape[2]*p.size,p.shape[3]*p.size);ctx.lineTo(0,0);ctx.stroke();}
 }
 function traceArc(ctx:CanvasRenderingContext2D,a:Float32Array,b:Float32Array,blend:number,reveal:number) {
   const end=Math.max(2,Math.floor((a.length/2-1)*reveal)*2);
@@ -76,11 +81,12 @@ function electricity(ctx:CanvasRenderingContext2D,scene:FXScene,arc:Arc,time:num
   for(let branch=-1;branch<arc.branches[index].length;branch++){
     const a=branch<0?arc.frames[index]:arc.branches[index][branch];
     const width=arc.thickness*(branch<0?1:.38),opacity=alpha*(branch<0?1:.65);
-    traceArc(ctx,a,a,0,clamp(t/(branch<0?.07:.16)));
-    ctx.strokeStyle=colors[1];ctx.globalAlpha=clamp(opacity*.1);ctx.lineWidth=width*13;ctx.stroke();
-    ctx.globalAlpha=clamp(opacity*.27);ctx.lineWidth=width*5;ctx.stroke();
-    ctx.strokeStyle=colors[0];ctx.globalAlpha=clamp(opacity*.75);ctx.lineWidth=width*1.9;ctx.stroke();
-    ctx.strokeStyle="#f5fcff";ctx.globalAlpha=clamp(opacity);ctx.lineWidth=width*.6;ctx.stroke();
+    const reveal=clamp(t/(branch<0?.07:.16)),path=reveal===1?arc.paths?.[index][branch+1]:undefined;
+    if(!path)traceArc(ctx,a,a,0,reveal);
+    ctx.strokeStyle=colors[1];if((scene.glowPasses??4)>3){ctx.globalAlpha=clamp(opacity*.1);ctx.lineWidth=width*13;if(path)ctx.stroke(path);else ctx.stroke();}
+    ctx.globalAlpha=clamp(opacity*.27);ctx.lineWidth=width*5;if(path)ctx.stroke(path);else ctx.stroke();
+    ctx.strokeStyle=colors[0];ctx.globalAlpha=clamp(opacity*.75);ctx.lineWidth=width*1.9;if(path)ctx.stroke(path);else ctx.stroke();
+    ctx.strokeStyle="#f5fcff";ctx.globalAlpha=clamp(opacity);ctx.lineWidth=width*.6;if(path)ctx.stroke(path);else ctx.stroke();
   }
 }
 
@@ -89,10 +95,9 @@ function pressureWave(ctx:CanvasRenderingContext2D,scene:FXScene,time:number) {
   const t=(time-start)/span;if(t<=0||t>=1)return;
   const expansion=1-Math.exp(-t*3),alpha=Math.sin(t*Math.PI)*(1-t)*scene.opacity*(scene.shockwaveOnly?.7:.18);
   const rx=scene.width*(.47+expansion*.48)*scene.size,ry=scene.height*(.49+expansion*.5)*scene.size;
-  const phase=scene.origins[0].nx*13;
   ctx.beginPath();
-  for(let i=0;i<=80;i++){const angle=i/80*TAU,warp=1+.025*Math.sin(angle*5+phase)+.015*Math.sin(angle*9-phase);
-    const x=Math.cos(angle)*rx*warp,y=Math.sin(angle)*ry*warp;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  for(let i=0;i<=80;i++){
+    const x=scene.wave![i*2]*rx,y=scene.wave![i*2+1]*ry;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
   ctx.strokeStyle=scene.textures!.colors[1];ctx.globalAlpha=alpha*.18;ctx.lineWidth=16*scene.size;ctx.stroke();
   ctx.globalAlpha=alpha*.5;ctx.lineWidth=5*scene.size;ctx.stroke();
@@ -112,10 +117,8 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
     if(!scene.shockwaveOnly){
       const hit=smooth(0,.015,time)*(1-smooth(.035,.13,time));
       const expansion=1-Math.exp(-time*12),radius=Math.min(width,height)*(.3+expansion*.32)*scene.size;
-      for(const o of [{x:0,y:0}]){
-        light(ctx,textures.light[1],o.x,o.y,radius,smooth(0,.015,time)*Math.pow(1-time,3)*opacity*(front?.48:.19),.85);
-        light(ctx,textures.light[0],o.x,o.y,radius*.5,hit*opacity*(front?.85:.42));
-      }
+      light(ctx,textures.light[1],0,0,radius,smooth(0,.015,time)*Math.pow(1-time,3)*opacity*(front?.48:.19),.85);
+      light(ctx,textures.light[0],0,0,radius*.5,hit*opacity*(front?.85:.42));
     }
   }else if(!front&&effect==="fxFireBurst"){
     const heat=smooth(0,.075,time)*(1-smooth(.35,.95,time));
@@ -125,7 +128,7 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
     const flare=smooth(0,.015,time)*Math.exp(-time*18)*opacity;
     for(const o of scene.origins)light(ctx,textures.light[1],o.x,o.y,front?18*scene.size:Math.min(width,height)*.18,flare*(front?.45:.18));
   }
-  for(const p of scene.particles){
+  for(const p of scene.planes?.[front?1:0]??scene.particles){
     if(p.front!==front)continue;
     const age=time-p.delay,t=age/p.life;if(t<=0||t>=1)continue;
     const x=particleX(p,age),y=particleY(p,age);
@@ -160,8 +163,11 @@ export function drawFX(ctx:CanvasRenderingContext2D,scene:FXScene,time:number,fr
     }else if(p.kind==="shard"||p.kind==="debris")fragment(ctx,scene,p,x,y,t,alpha);
     else if(p.kind==="confetti"){
       ctx.translate(x,y);ctx.rotate(p.rotation+p.spin*age);ctx.scale(Math.cos(p.phase+age*11),1);
-      ctx.globalAlpha=clamp(alpha);ctx.fillStyle=p.secondary?secondary:p.phase<2?primary:`hsl(${Math.round(p.phase*57)},85%,65%)`;
-      if(p.variant===0){ctx.beginPath();ctx.moveTo(-p.size*.4,-p.size*1.7);ctx.bezierCurveTo(p.size,-p.size,-p.size,p.size,p.size*.4,p.size*1.7);ctx.lineWidth=p.size*.6;ctx.strokeStyle=ctx.fillStyle;ctx.stroke();}
+      ctx.globalAlpha=clamp(alpha);ctx.fillStyle=p.confettiColor??(p.secondary?secondary:p.phase<2?primary:`hsl(${Math.round(p.phase*57)},85%,65%)`);
+      if(p.variant===0){
+        ctx.lineWidth=p.size*.6;ctx.strokeStyle=ctx.fillStyle;
+        ctx.beginPath();ctx.moveTo(-p.size*.4,-p.size*1.7);ctx.bezierCurveTo(p.size,-p.size,-p.size,p.size,p.size*.4,p.size*1.7);ctx.stroke();
+      }
       else{ctx.fillRect(-p.size/2,-p.size,p.size,p.size*1.6);ctx.globalAlpha=clamp(alpha*.5);ctx.fillStyle="#ffffff";ctx.fillRect(-p.size/2,-p.size,p.size*.14,p.size*1.6);}
     }else{
       const twinkle=.55+.45*Math.sin(p.phase+age*17)**2;

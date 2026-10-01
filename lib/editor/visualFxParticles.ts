@@ -12,12 +12,18 @@ export function seededRandom(seed: string) {
 }
 export type ParticleKind = "blast" | "smoke" | "spark" | "flame" | "debris" | "shard" | "glint" | "mote" | "confetti";
 export interface Particle {
+  face?: HTMLCanvasElement;
+  faceRadius?: number;
+  outlinePath?: Path2D;
+  bevelPaths?: Path2D[];
+  confettiColor?: string;
   kind: ParticleKind; front: boolean; x: number; y: number; vx: number; vy: number;
   size: number; depth: number; z: number; vz: number; delay: number; life: number; rotation: number; spin: number;
   phase: number; gravity: number; drag: number; sway: number; brightness: number; trail: number;
   secondary: boolean; variant: number; originIndex:number; shape: Float32Array;
 }
 export interface Arc {
+  paths?: Path2D[][];
   frames: Float32Array[]; branches: Float32Array[][];
   delay: number; life: number; front: boolean; thickness: number; phase: number;
 }
@@ -26,6 +32,11 @@ export interface FXTextures {
   streak: HTMLCanvasElement[]; colors: string[];
 }
 export interface FXScene {
+  hosted?: boolean;
+  trailSamples?: number;
+  glowPasses?: number;
+  planes?: [Particle[],Particle[]];
+  wave?: Float32Array;
   textures?: FXTextures; effect: ParticleEffect; particles: Particle[]; arcs: Arc[];
   width: number; height: number; padding: number; primary: string; secondary: string;
   size: number; opacity: number; intensity: number; originX: number; originY: number; origins:FXOrigin[]; shockwaveOnly:boolean;
