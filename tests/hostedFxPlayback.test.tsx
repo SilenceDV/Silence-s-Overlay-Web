@@ -23,3 +23,35 @@ it("remounts shared FX on every hosted slide appearance and preserves it on unch
   await act(async()=>{vi.advanceTimersByTime(1000)});expect(mounts).toHaveBeenCalledTimes(2);
   await act(async()=>{vi.advanceTimersByTime(1000)});expect(mounts).toHaveBeenCalledTimes(3);
 });
+
+it("passes hosted performance only to visible active-slide FX and avoids unchanged renders",async()=>{
+  const project=defaultProject(),layer={...defaultImage("",""),burstEffect:"fxSpark" as const};
+  project.slides=[{...project.slides[0],layers:[layer,{...layer,id:"invisible",opacity:0}]},{...project.slides[0],id:"inactive",layers:[{...layer,id:"other"}]}];
+  const saved=structuredClone(project);
+  vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({active:true,project:structuredClone(saved)})})));
+  const view=render(<OverlayClient project={project} publicId="test"/>);
+  await act(async()=>{await Promise.resolve()});
+  expect(VisualFX).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(VisualFX).mock.calls[0][0]).toMatchObject({layer,performance:expect.objectContaining({quality:expect.objectContaining({tier:0})})});
+  expect((view.container.firstElementChild as HTMLElement).style.background).toBe("transparent");
+  await act(async()=>{connection.refresh?.();await Promise.resolve()});expect(VisualFX).toHaveBeenCalledTimes(1);
+  saved.slides[0].layers[0]={...layer,fxPrimaryColor:"#123456"};
+  await act(async()=>{connection.refresh?.();await Promise.resolve()});expect(VisualFX).toHaveBeenCalledTimes(2);
+});
+
+it("queues a realtime update received during an in-flight fetch",async()=>{
+  const project=defaultProject();
+  let resolve!:(response:unknown)=>void;
+  const fetcher=vi.fn().mockImplementationOnce(()=>new Promise(done=>{resolve=done})).mockResolvedValue({ok:true,json:async()=>({active:false})});
+  vi.stubGlobal("fetch",fetcher);
+  const view=render(<OverlayClient project={project} publicId="test"/>);
+  await act(async()=>{connection.refresh?.();resolve({ok:true,json:async()=>({active:true,project})});});
+  expect(fetcher).toHaveBeenCalledTimes(2);expect(view.container.childElementCount).toBe(0);
+});
+
+it("cleans up polling and aborts an outstanding status request on unmount",()=>{
+  const fetcher=vi.fn(()=>new Promise(()=>{}));vi.stubGlobal("fetch",fetcher);
+  const view=render(<OverlayClient project={defaultProject()} publicId="test"/>);
+  const signal=(fetcher.mock.calls[0] as unknown as [string,RequestInit])[1].signal!;
+  view.unmount();expect(signal.aborted).toBe(true);expect(vi.getTimerCount()).toBe(0);
+});

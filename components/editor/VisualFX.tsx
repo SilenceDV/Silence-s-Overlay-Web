@@ -5,8 +5,9 @@ import type { ImageLayer } from "@/types/editor";
 import { canvasResolution, createFXScene, drawFX, prepareFX } from "@/lib/editor/visualFxCanvas";
 import {loadImageShape,projectImageShape,type VisibleShape} from "@/lib/editor/imageShape";
 import { useFXReplay } from "./FXReplay";
+import type { HostedPerformance } from "@/lib/overlays/performance";
 
-export function VisualFX({ layer, preview = false }: { layer: ImageLayer; preview?: boolean }): ReactElement | null {
+export function VisualFX({ layer, preview = false, performance }: { layer: ImageLayer; preview?: boolean; performance?: HostedPerformance }): ReactElement | null {
   const behind = useRef<HTMLCanvasElement>(null), front = useRef<HTMLCanvasElement>(null);
   const replay = useFXReplay();
   const version = useRef(0);
@@ -19,11 +20,13 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
     const backCtx = back.getContext("2d", {alpha:true}), frontCtx = fore.getContext("2d", {alpha:true});
     if (!backCtx || !frontCtx) return;
     let frame: number | null = null;
+    let unsubscribe:(()=>void)|undefined;
     const clear = () => {
       backCtx.setTransform(1,0,0,1,0,0); backCtx.clearRect(0,0,back.width,back.height);
       frontCtx.setTransform(1,0,0,1,0,0); frontCtx.clearRect(0,0,fore.width,fore.height);
     };
-    const stop = () => { if (frame !== null) cancelAnimationFrame(frame); frame = null; clear(); };
+    const release=()=>{if(performance)back.width=back.height=fore.width=fore.height=1;};
+    const stop = () => { unsubscribe?.();unsubscribe=undefined;if (frame !== null) cancelAnimationFrame(frame); frame = null; clear();release(); };
     clear();
     if (burstEffect === "none") {
       // Retain the DOM surfaces, but release the backing buffers while disabled.
@@ -36,11 +39,18 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
     const launch=(shape?:VisibleShape)=>{
     if(disposed||document.hidden||motion?.matches)return;
     const scene = createFXScene({id, burstEffect, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h} as ImageLayer, `${id}:0`,shape);
+    scene.hosted=!!performance;
     // Prepare offscreen assets before touching either displayed surface.
     prepareFX(scene);
     const width = scene.width + scene.padding * 2, height = scene.height + scene.padding * 2;
     const resolution = canvasResolution(width, height, window.devicePixelRatio || 1);
-    for (const canvas of [back, fore]) {
+    const quality=performance?.profile;
+    scene.trailSamples=quality?.trailSamples;scene.glowPasses=quality?.glowPasses;
+    const scale=quality?.resolution??1;
+    resolution.width=Math.max(1,Math.floor(resolution.width*scale));resolution.height=Math.max(1,Math.floor(resolution.height*scale));
+    const planes=[!scene.shockwaveOnly||scene.particles.some(p=>!p.front),!scene.shockwaveOnly];
+    for (const [plane,canvas] of [back, fore].entries()) {
+      if(performance&&!planes[plane]){canvas.width=canvas.height=1;continue;}
       // Assigning width/height clears and reallocates a Canvas backing store, even
       // when the value is unchanged. Colors, opacity and replay never need that.
       if (canvas.width !== resolution.width) canvas.width = resolution.width;
@@ -49,16 +59,24 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
       canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
     }
     // Both planes have valid transparent contents before this commit is painted.
-    drawFX(backCtx, scene, 0, false); drawFX(frontCtx, scene, 0, true);
+    if(planes[0])drawFX(backCtx, scene, 0, false);if(planes[1])drawFX(frontCtx, scene, 0, true);
     const duration = Math.max(.2, Math.min(8, burstSpeed)) * 1000;
     let start: number | null = null;
+    let currentTime=0;
     const tick = (now: number) => {
       if (start === null) start = now;
       const time = (now - start) / duration;
-      drawFX(backCtx, scene, time, false); drawFX(frontCtx, scene, time, true);
-      frame = time < 1 ? requestAnimationFrame(tick) : null;
+      currentTime=time;
+      if(performance){scene.trailSamples=performance.profile.trailSamples;scene.glowPasses=performance.profile.glowPasses;}
+      if(planes[0])drawFX(backCtx, scene, time, false);if(planes[1])drawFX(frontCtx, scene, time, true);
+      if(!performance)frame = time < 1 ? requestAnimationFrame(tick) : null;
+      if(time>=1){unsubscribe=undefined;release();}
+      return time<1;
     };
-    frame = requestAnimationFrame(tick);
+    if(performance)unsubscribe=performance.add(tick,()=>{
+      let count=0;for(const p of scene.particles)if(currentTime>=p.delay&&currentTime<p.delay+p.life)count++;return count;
+    },planes.filter(Boolean).length);
+    else frame = requestAnimationFrame(tick);
     };
     if(imageUrl){
       void loadImageShape(imageUrl).then(source=>{
@@ -72,6 +90,6 @@ export function VisualFX({ layer, preview = false }: { layer: ImageLayer; previe
     document.addEventListener("visibilitychange", visibility);
     motion?.addEventListener("change", reduced);
     return () => { disposed=true;stop(); document.removeEventListener("visibilitychange", visibility); motion?.removeEventListener("change", reduced); };
-  }, [id, burstEffect, burstSpeed, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h, imageUrl, imageWidth, imageHeight, cropX, cropY, cropZoom, replayVersion]);
+  }, [id, burstEffect, burstSpeed, fxPrimaryColor, fxSecondaryColor, fxIntensity, fxSize, fxOpacity, fxSpread, w, h, imageUrl, imageWidth, imageHeight, cropX, cropY, cropZoom, replayVersion, performance]);
   return <><canvas ref={behind} width={1} height={1} hidden={burstEffect === "none"} aria-hidden="true" className="visualFX fxBehind"/><canvas ref={front} width={1} height={1} hidden={burstEffect === "none"} aria-hidden="true" className="visualFX fxFront"/></>;
 }

@@ -7,6 +7,7 @@ import { VisualFX } from "@/components/editor/VisualFX";
 import { FXReplayProvider } from "@/components/editor/FXReplay";
 import { ImageLayerControls } from "@/components/editor/ImageLayerControls";
 import { drawFX } from "@/lib/editor/visualFxCanvas";
+import {HostedPerformance} from "@/lib/overlays/performance";
 
 vi.mock("@/lib/editor/visualFxCanvas", async importOriginal => ({...await importOriginal<typeof import("@/lib/editor/visualFxCanvas")>(), prepareFX:vi.fn(), drawFX:vi.fn()}));
 let frames: Map<number, FrameRequestCallback>, next: number;
@@ -99,4 +100,23 @@ it("does not animate a fully transparent or fully cropped image",async()=>{
  vi.spyOn(imageShape,"loadImageShape").mockResolvedValue({width:96,height:96,points:[],edges:[]});
  await act(async()=>{render(<VisualFX layer={{...image(),imageUrl:"empty.png"}}/>)});
  expect(frames.size).toBe(0);
+});
+
+it("shares hosted callbacks, preserves editor defaults, and drains completed work",()=>{
+  const runtime=new HostedPerformance();
+  const view=render(<><VisualFX layer={image()} performance={runtime}/><VisualFX layer={image()} performance={runtime}/></>);
+  expect(frames.size).toBe(1);
+  expect(vi.mocked(drawFX).mock.calls.every(([,scene])=>scene.hosted===true)).toBe(true);
+  advance(0);advance(1000);expect(frames.size).toBe(0);expect(runtime.snapshot().activeCanvases).toBe(0);
+  expect([...view.container.querySelectorAll("canvas")].every(canvas=>canvas.width===1&&canvas.height===1)).toBe(true);
+  view.unmount();runtime.dispose();expect(frames.size).toBe(0);
+});
+
+it("applies hosted profile changes without restarting the burst and cancels on hiding",()=>{
+  const runtime=new HostedPerformance();render(<VisualFX layer={image()} performance={runtime}/>);
+  advance(0);runtime.quality.tier=1;advance(16);
+  expect(vi.mocked(drawFX).mock.lastCall?.[1]).toMatchObject({trailSamples:4,glowPasses:3});
+  expect(frames.size).toBe(1);
+  vi.spyOn(document,"hidden","get").mockReturnValue(true);fireEvent(document,new Event("visibilitychange"));
+  expect(frames.size).toBe(0);expect(runtime.snapshot().activeCanvases).toBe(0);runtime.dispose();
 });

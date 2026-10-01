@@ -6,7 +6,7 @@ function context(canvas:HTMLCanvasElement) {
   return {canvas,fillStyle:"#ffffff",strokeStyle:"#ffffff",globalAlpha:1,
     createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),
     getImageData:()=>({data:new Uint8ClampedArray([255,255,255,255])}),
-    createLinearGradient:()=>({addColorStop:vi.fn()}),createRadialGradient:()=>({addColorStop:vi.fn()}),
+    createLinearGradient:vi.fn(()=>({addColorStop:vi.fn()})),createRadialGradient:vi.fn(()=>({addColorStop:vi.fn()})),
     putImageData:vi.fn(),setTransform:vi.fn(),clearRect:vi.fn(),save:vi.fn(),restore:vi.fn(),
     translate:vi.fn(),rotate:vi.fn(),scale:vi.fn(),drawImage:vi.fn(),fillRect:vi.fn(),
     beginPath:vi.fn(),closePath:vi.fn(),moveTo:vi.fn(),lineTo:vi.fn(),arc:vi.fn(),
@@ -25,4 +25,15 @@ it.each(fxOptions)("%s retains textures during frames and clears after its lifet
   drawFX(ctx as unknown as CanvasRenderingContext2D,s,1,false);
   drawFX(ctx as unknown as CanvasRenderingContext2D,s,1,true);
   expect(ctx.clearRect).toHaveBeenCalledTimes(2);expect(ctx.drawImage).not.toHaveBeenCalled();expect(ctx.stroke).not.toHaveBeenCalled();
+});
+
+it.each(fxOptions)("hosted %s draws without per-frame gradient or canvas creation",effect=>{
+  vi.spyOn(HTMLCanvasElement.prototype,"getContext").mockImplementation(function(this:HTMLCanvasElement){return context(this) as unknown as CanvasRenderingContext2D});
+  const scene=createFXScene({...defaultImage("",""),burstEffect:effect},"hosted-cached");scene.hosted=true;
+  const count=scene.particles.length;prepareFX(scene);
+  expect(scene.planes![0].length+scene.planes![1].length).toBe(count);
+  const ctx=context(document.createElement("canvas")),allocation=vi.spyOn(document,"createElement");
+  for(let i=0;i<60;i++)for(const front of [false,true])drawFX(ctx as unknown as CanvasRenderingContext2D,scene,i/60,front);
+  expect(allocation).not.toHaveBeenCalled();expect(ctx.createLinearGradient).not.toHaveBeenCalled();expect(ctx.createRadialGradient).not.toHaveBeenCalled();
+  expect(scene.particles).toHaveLength(count);
 });
