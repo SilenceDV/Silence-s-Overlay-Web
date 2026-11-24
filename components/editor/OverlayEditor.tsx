@@ -129,7 +129,7 @@ export function OverlayEditor({initialProject,projectId,version,proAccess}:{init
         onOverlayOnly={()=>setOverlayOnly(value=>!value)}
       />
       {notice && <div className="editor-notice" role="status">{notice}<button aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button></div>}
-      <CanvasStage slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} fading={fading} onInteractionChange={setInteracting} />
+      <CanvasStage sizeReferences={state.project.slides.filter(s=>s.id!==slide.id).flatMap(s=>s.layers.filter(l=>l.type==="image"))} slide={slide} settings={state.project.settings} selected={state.selectedLayerId} api={api} fading={fading} onInteractionChange={setInteracting} />
     </section>
     {upgrade&&<div className="modal-backdrop"><section className="card upgrade-modal"><h2>Unlock unlimited slides</h2><p>Free projects support one slide. Pro unlocks unlimited slides, premium animations, and hosted Pro overlays.</p><div className="actions"><a className="button" href="/billing">Upgrade to Pro</a><button onClick={()=>setUpgrade(false)}>Not now</button></div></section></div>}
     <input ref={imageInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { readImage(event.target.files?.[0]); event.target.value = ""; }} />
